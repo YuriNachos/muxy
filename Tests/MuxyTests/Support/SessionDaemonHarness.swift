@@ -70,7 +70,8 @@ final class SessionDaemonHarness {
     func runAttachClient(
         identifier: SessionIdentifier,
         command: String,
-        timeout: TimeInterval
+        timeout: TimeInterval,
+        daemonBinaryPath: String? = nil
     ) throws -> AttachClientResult {
         guard let binaryURL = Self.binaryURL else {
             return AttachClientResult(status: -1, output: "")
@@ -82,7 +83,7 @@ final class SessionDaemonHarness {
             "PATH": "/usr/bin:/bin",
             "MUXY_SESSION_ID": identifier.uuidString,
             "MUXY_SESSION_SOCKET": socketPath,
-            "MUXY_SESSION_BINARY": binaryURL.path,
+            "MUXY_SESSION_BINARY": daemonBinaryPath ?? binaryURL.path,
             "MUXY_SESSION_SHELL": "/bin/sh",
             "MUXY_SESSION_CWD": "/tmp",
             "MUXY_SESSION_COMMAND": command,

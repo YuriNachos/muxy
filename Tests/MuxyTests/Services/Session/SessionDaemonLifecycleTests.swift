@@ -48,6 +48,22 @@ struct SessionDaemonLifecycleTests {
         #expect(result.status == 0)
     }
 
+    @Test("fails immediately when the daemon binary cannot be launched")
+    func attachClientFailsFastForMissingDaemonBinary() throws {
+        let harness = try SessionDaemonHarness()
+        defer { harness.stop() }
+
+        let result = try harness.runAttachClient(
+            identifier: makeIdentifier(),
+            command: "",
+            timeout: 5,
+            daemonBinaryPath: harness.directory.appendingPathComponent("missing-muxy-session").path
+        )
+        let launchFailureCount = result.output.components(separatedBy: "could not start the session daemon").count - 1
+        #expect(result.status == 93)
+        #expect(launchFailureCount == 1)
+    }
+
     @Test("keeps trying after the first daemon loses the startup race")
     func attachClientRetriesAfterLostStartupRace() throws {
         let harness = try SessionDaemonHarness()

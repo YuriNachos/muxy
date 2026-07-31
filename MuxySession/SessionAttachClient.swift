@@ -33,6 +33,18 @@ enum SessionAttachClient {
         case failed(Int32)
     }
 
+    private enum ConnectionOutcome {
+        case connected(Int32)
+        case retry
+        case failed(Int32)
+    }
+
+    private enum DaemonLaunchOutcome {
+        case started
+        case retryableFailure
+        case fatalFailure
+    }
+
     static func run(configuration: Configuration) -> Int32 {
         signal(SIGPIPE, SIG_IGN)
 
@@ -64,7 +76,15 @@ enum SessionAttachClient {
     }
 
     private static func attach(configuration: Configuration, signalPipe: SessionSignalPipe) -> Outcome {
-        guard let socket = connect(socketPath: configuration.socketPath) else { return .retry }
+        let socket: Int32
+        switch connect(socketPath: configuration.socketPath) {
+        case let .connected(descriptor):
+            socket = descriptor
+        case .retry:
+            return .retry
+        case let .failed(status):
+            return .failed(status)
+        }
         defer { SessionIO.close(socket) }
         SessionIO.setNonBlocking(socket)
 
@@ -226,26 +246,32 @@ enum SessionAttachClient {
         return original
     }
 
-    private static func connect(socketPath: String) -> Int32? {
+    private static func connect(socketPath: String) -> ConnectionOutcome {
         for _ in 0 ..< connectCycles {
             if let descriptor = SessionSocket.connect(path: socketPath) {
-                return descriptor
+                return .connected(descriptor)
             }
-            launchDaemon(socketPath: socketPath)
+            switch launchDaemon(socketPath: socketPath) {
+            case .started,
+                 .retryableFailure:
+                break
+            case .fatalFailure:
+                return .failed(SessionAttachExitCode.startupFailure)
+            }
             for _ in 0 ..< connectAttemptsPerCycle {
                 usleep(connectRetryMicroseconds)
                 if let descriptor = SessionSocket.connect(path: socketPath) {
-                    return descriptor
+                    return .connected(descriptor)
                 }
             }
         }
-        return nil
+        return .retry
     }
 
-    private static func launchDaemon(socketPath: String) {
+    private static func launchDaemon(socketPath: String) -> DaemonLaunchOutcome {
         guard let binaryPath = executablePath() else {
             report("unable to locate the session daemon binary")
-            return
+            return .fatalFailure
         }
         let arguments = SessionCStringArray([binaryPath, "daemon", "--socket", socketPath])
 
@@ -269,8 +295,9 @@ enum SessionAttachClient {
 
         var processID: pid_t = 0
         let result = posix_spawn(&processID, binaryPath, &fileActions, &attributes, arguments.pointer, environ)
-        guard result != 0 else { return }
+        guard result != 0 else { return .started }
         report("could not start the session daemon (\(result))")
+        return result == EAGAIN || result == EINTR ? .retryableFailure : .fatalFailure
     }
 
     static func executablePath() -> String? {
