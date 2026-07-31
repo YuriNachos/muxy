@@ -122,13 +122,13 @@ struct SessionIdentifierTests {
 
 @Suite("SessionMessages")
 struct SessionMessagesTests {
-    private var identifier: SessionIdentifier {
-        // swiftlint:disable:next force_unwrapping
-        SessionIdentifier(uuidString: "3f2504e0-4f89-11d3-9a0c-0305e82c3301")!
+    private func makeIdentifier() throws -> SessionIdentifier {
+        try #require(SessionIdentifier(uuidString: "3f2504e0-4f89-11d3-9a0c-0305e82c3301"))
     }
 
     @Test("round-trips an attach request including its environment")
     func roundTripsAttachRequest() throws {
+        let identifier = try makeIdentifier()
         let request = SessionAttachRequest(
             identifier: identifier,
             columns: 120,
@@ -147,6 +147,7 @@ struct SessionMessagesTests {
 
     @Test("round-trips an attach request with no environment")
     func roundTripsEmptyEnvironment() throws {
+        let identifier = try makeIdentifier()
         let request = SessionAttachRequest(
             identifier: identifier,
             columns: 80,
@@ -162,6 +163,7 @@ struct SessionMessagesTests {
 
     @Test("preserves non-ascii payloads")
     func preservesNonASCII() throws {
+        let identifier = try makeIdentifier()
         let request = SessionAttachRequest(
             identifier: identifier,
             columns: 80,
@@ -183,6 +185,7 @@ struct SessionMessagesTests {
 
     @Test("round-trips a descriptor list")
     func roundTripsDescriptorList() throws {
+        let identifier = try makeIdentifier()
         let descriptors = [
             SessionDescriptor(
                 identifier: identifier,
@@ -209,6 +212,7 @@ struct SessionMessagesTests {
 
     @Test("round-trips resize, exit, text and identifier payloads")
     func roundTripsScalarPayloads() throws {
+        let identifier = try makeIdentifier()
         let resize = try SessionResizePayload.decode(SessionResizePayload.encode(columns: 200, rows: 60))
         #expect(resize.columns == 200)
         #expect(resize.rows == 60)

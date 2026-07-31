@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import MuxySessionProtocol
 import Testing
@@ -6,6 +7,12 @@ import Testing
 
 @Suite("SessionDaemon end to end", .serialized, .enabled(if: SessionDaemonHarness.binaryURL != nil))
 struct SessionDaemonEndToEndTests {
+    private struct SignalResistantSession {
+        let identifier: SessionIdentifier
+        let connection: SessionTestConnection
+        let processIDs: [pid_t]
+    }
+
     private func makeIdentifier() throws -> SessionIdentifier {
         try #require(SessionIdentifier(uuidString: UUID().uuidString))
     }
@@ -221,6 +228,48 @@ struct SessionDaemonEndToEndTests {
         }
     }
 
+    @Test("kills an entire session whose processes ignore hangup and termination")
+    func killsSignalResistantSession() throws {
+        try withHarness { harness in
+            let resistantSession = try makeSignalResistantSession(harness: harness)
+            defer { resistantSession.connection.close() }
+
+            let control = try #require(SessionTestConnection(socketPath: harness.socketPath))
+            defer { control.close() }
+            control.send(SessionFrame(
+                kind: .kill,
+                payload: SessionIdentifierPayload.encode(resistantSession.identifier)
+            ))
+            _ = try #require(control.waitForFrame(timeout: 5) { $0.kind == .acknowledged })
+
+            for processID in resistantSession.processIDs {
+                #expect(!processExists(processID))
+            }
+        }
+    }
+
+    @Test("kills signal-resistant sessions together within the control timeout")
+    func killsAllSignalResistantSessionsWithinControlTimeout() throws {
+        try withHarness { harness in
+            var resistantSessions: [SignalResistantSession] = []
+            defer { resistantSessions.forEach { $0.connection.close() } }
+            for _ in 0 ..< 12 {
+                resistantSessions.append(try makeSignalResistantSession(harness: harness))
+            }
+
+            let control = try #require(SessionTestConnection(socketPath: harness.socketPath))
+            defer { control.close() }
+            control.send(SessionFrame(kind: .killAll))
+            _ = try #require(control.waitForFrame(timeout: PersistentSessionControlClient.defaultTimeout) {
+                $0.kind == .acknowledged
+            })
+
+            for processID in resistantSessions.flatMap(\.processIDs) {
+                #expect(!processExists(processID))
+            }
+        }
+    }
+
     @Test("returns session details for a single identifier")
     func returnsSessionInfo() throws {
         try withHarness { harness in
@@ -364,5 +413,35 @@ struct SessionDaemonEndToEndTests {
             let listed = try #require(control.waitForFrame(timeout: 5) { $0.kind == .sessions })
             #expect(try SessionDescriptor.decodeList(listed.payload).count == 1)
         }
+    }
+
+    private func processExists(_ processID: pid_t) -> Bool {
+        guard kill(processID, 0) != 0 else { return true }
+        return errno == EPERM
+    }
+
+    private func makeSignalResistantSession(harness: SessionDaemonHarness) throws -> SignalResistantSession {
+        let identifier = try makeIdentifier()
+        let connection = try #require(SessionTestConnection(socketPath: harness.socketPath))
+        connection.send(harness.attachRequest(
+            identifier: identifier,
+            command: "sh -c 'trap \"\" HUP TERM; sh -c \"trap \\\"\\\" HUP TERM; echo CHILD=\\$\\$; while :; do sleep 1; done\" & echo READY; wait'"
+        ))
+
+        let acceptedFrame = try #require(connection.waitForFrame(timeout: 5) { $0.kind == .attached })
+        let accepted = try SessionAttachAccepted.decode(acceptedFrame.payload)
+        let output = connection.collectOutput(timeout: 5) { $0.contains("READY") && $0.contains("CHILD=") }
+        let childProcessID = output
+            .split(whereSeparator: \.isNewline)
+            .lazy
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { $0.hasPrefix("CHILD=") }
+            .flatMap { pid_t(String($0.dropFirst("CHILD=".count))) }
+
+        return try SignalResistantSession(
+            identifier: identifier,
+            connection: connection,
+            processIDs: [accepted.shellProcessID, #require(childProcessID)]
+        )
     }
 }

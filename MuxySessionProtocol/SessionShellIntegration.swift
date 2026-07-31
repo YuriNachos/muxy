@@ -71,8 +71,8 @@ public enum SessionShellIntegration {
             case "zsh":
                 applyZshIntegration(root: root, environment: &environment)
             case "bash":
+                applyBashIntegration(root: root, environment: &environment)
                 if command.isEmpty {
-                    applyBashIntegration(root: root, environment: &environment)
                     arguments.append("--posix")
                 }
             case "fish",

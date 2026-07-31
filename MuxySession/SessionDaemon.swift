@@ -198,15 +198,16 @@ final class SessionDaemon {
             let matches = sessions[identifier].map { [$0.descriptor] } ?? []
             connection.enqueue(SessionFrame(kind: .sessions, payload: SessionDescriptor.encodeList(matches)))
         case .kill:
-            if let identifier = try? SessionIdentifierPayload.decode(frame.payload), let session = sessions[identifier] {
-                endSession(session, status: 0)
+            let stopped = if let identifier = try? SessionIdentifierPayload.decode(frame.payload),
+                             let session = sessions[identifier]
+            {
+                endSession(session, status: 0, force: true)
+            } else {
+                true
             }
-            connection.enqueue(SessionFrame(kind: .acknowledged))
+            enqueueStopResult(stopped, connection: connection)
         case .killAll:
-            for session in Array(sessions.values) {
-                endSession(session, status: 0)
-            }
-            connection.enqueue(SessionFrame(kind: .acknowledged))
+            enqueueStopResult(endSessions(Array(sessions.values), status: 0), connection: connection)
         case .attached,
              .output,
              .exited,
@@ -359,14 +360,45 @@ final class SessionDaemon {
         SessionPTY.terminate(processID: session.processID)
     }
 
-    private func endSession(_ session: PTYSession, status: Int32) {
+    @discardableResult
+    private func endSession(_ session: PTYSession, status: Int32, force: Bool = false) -> Bool {
         closeMaster(session)
+        guard !force || SessionPTY.forceTerminate(processID: session.processID) else {
+            SessionLog.write("failed to stop session \(session.identifier.uuidString)")
+            return false
+        }
+        finishSession(session, status: status)
+        return true
+    }
+
+    private func endSessions(_ endingSessions: [PTYSession], status: Int32) -> Bool {
+        for session in endingSessions {
+            closeMaster(session)
+        }
+        let failedProcessIDs = SessionPTY.forceTerminate(processIDs: endingSessions.map(\.processID))
+        for session in endingSessions where !failedProcessIDs.contains(session.processID) {
+            finishSession(session, status: status)
+        }
+        for session in endingSessions where failedProcessIDs.contains(session.processID) {
+            SessionLog.write("failed to stop session \(session.identifier.uuidString)")
+        }
+        return failedProcessIDs.isEmpty
+    }
+
+    private func finishSession(_ session: PTYSession, status: Int32) {
         sessions.removeValue(forKey: session.identifier)
         guard let descriptor = session.clientDescriptor, let connection = connections[descriptor] else { return }
         connection.enqueue(SessionFrame(kind: .exited, payload: SessionExitPayload.encode(status: status)))
         connection.attachedSession = nil
         connection.closesAfterFlush = true
         session.clientDescriptor = nil
+    }
+
+    private func enqueueStopResult(_ stopped: Bool, connection: SessionConnection) {
+        let frame = stopped
+            ? SessionFrame(kind: .acknowledged)
+            : SessionFrame(kind: .failure, payload: SessionTextPayload.encode("failed to stop one or more sessions"))
+        connection.enqueue(frame)
     }
 
     private func reapChildren() {

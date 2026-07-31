@@ -10,8 +10,6 @@
 #   muxy close-pane --pane <id>                Close a pane
 #   muxy rename-pane --pane <id> <title>       Rename a pane tab
 #   muxy list-panes                            List all panes (tab-separated)
-#   muxy list-sessions                         List background terminal sessions (tab-separated)
-#   muxy kill-session --session <id>           Stop a background terminal session
 #   muxy list-projects                         List projects
 #   muxy switch-project <name|id|path>         Switch active project
 #   muxy list-worktrees [project]              List worktrees

@@ -125,12 +125,13 @@ struct SessionShellIntegrationTests {
         #expect(value("ZDOTDIR", in: result) == integrationRoot + "/zsh")
     }
 
-    @Test("does not force bash into posix mode when running a startup command")
-    func skipsBashInjectionForCommands() {
+    @Test("injects bash integration for startup commands without changing the outer shell")
+    func injectsBashForCommands() {
         let result = invocation(shell: "/bin/bash", command: "echo hi", environment: ["HOME": "/Users/test"])
         #expect(result.executable == "/bin/sh")
-        #expect(value("ENV", in: result) == nil)
-        #expect(value("GHOSTTY_BASH_INJECT", in: result) == nil)
+        #expect(result.arguments == ["/bin/sh", "-c", "exec echo hi"])
+        #expect(value("ENV", in: result) == integrationRoot + "/bash/ghostty.bash")
+        #expect(value("GHOSTTY_BASH_INJECT", in: result) == "1")
     }
 
     @Test("falls back to zsh when the shell is unknown")
