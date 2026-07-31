@@ -40,6 +40,7 @@ final class AppState {
         case createExtensionTab(projectID: UUID, areaID: UUID?, request: CreateExtensionTabRequest)
         case createBrowserTab(projectID: UUID, areaID: UUID?, url: URL?, profileID: UUID)
         case createTabInWorktree(key: WorktreeKey, areaID: UUID?)
+        case createSessionTab(key: WorktreeKey, areaID: UUID?, sessionID: UUID, title: String?)
         case createBrowserTabInWorktree(key: WorktreeKey, areaID: UUID?, url: URL?, profileID: UUID)
         case createBrowserSplit(projectID: UUID, areaID: UUID, url: URL?, profileID: UUID)
         case createBrowserSplitInWorktree(key: WorktreeKey, areaID: UUID, url: URL?, profileID: UUID)
@@ -396,6 +397,21 @@ final class AppState {
 
     func hasTabs(for key: WorktreeKey) -> Bool {
         areas(for: key).contains { !$0.tabs.isEmpty }
+    }
+
+    var allTerminalPanes: [TerminalPaneState] {
+        workspaceRoots.values.flatMap { root in
+            root.allAreas().flatMap { area in
+                area.tabs.compactMap(\.content.pane)
+            }
+        }
+    }
+
+    func panes(inWorktree key: WorktreeKey) -> [TerminalPaneState] {
+        guard let root = workspaceRoots[key] else { return [] }
+        return root.allAreas().flatMap { area in
+            area.tabs.compactMap(\.content.pane)
+        }
     }
 
     func locatePane(paneID: UUID) -> (worktreeKey: WorktreeKey, pane: TerminalPaneState)? {

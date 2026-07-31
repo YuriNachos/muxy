@@ -22,7 +22,9 @@ final class GhosttyTerminalNSView: NSView,
     private let commandInteractive: Bool
     private let commandClosesOnExit: Bool
     private let workspaceContext: WorkspaceContext
+    let persistentSessionID: UUID?
     var envVars: [(key: String, value: String)] = []
+    var sessionMetadata: [(key: String, value: String)] = []
     var onTitleChange: ((String) -> Void)?
     var onWorkingDirectoryChange: ((String) -> Void)?
     var onFocus: (() -> Void)?
@@ -74,6 +76,9 @@ final class GhosttyTerminalNSView: NSView,
 
     var foregroundProcessID: Int32? {
         guard let surface else { return nil }
+        if let persistentSessionID {
+            return PersistentSessionService.shared.foregroundProcessID(sessionID: persistentSessionID)
+        }
         let processID = ghostty_surface_foreground_pid(surface)
         guard processID > 0, processID <= UInt64(Int32.max) else { return nil }
         return Int32(processID)
@@ -103,13 +108,15 @@ final class GhosttyTerminalNSView: NSView,
         command: String? = nil,
         commandInteractive: Bool = false,
         closesOnCommandExit: Bool = true,
-        workspaceContext: WorkspaceContext = .local
+        workspaceContext: WorkspaceContext = .local,
+        persistentSessionID: UUID? = nil
     ) {
         self.workingDirectory = workingDirectory
         self.command = command
         self.commandInteractive = commandInteractive
         commandClosesOnExit = closesOnCommandExit
         self.workspaceContext = workspaceContext
+        self.persistentSessionID = persistentSessionID
         super.init(frame: .zero)
         wantsLayer = true
         setupTrackingArea()
@@ -181,6 +188,15 @@ final class GhosttyTerminalNSView: NSView,
         surfaceCStringPointers.append(workingDirectoryPointer)
         config.working_directory = UnsafePointer(workingDirectoryPointer)
 
+        let startedPersistentSession = workspaceContext.sshDestination == nil
+            && persistentSessionID != nil
+            && applyPersistentSessionConfiguration(
+                &config,
+                environment: &cEnvVars,
+                launchCommand: launchCommand,
+                workingDirectory: localWorkingDirectory
+            )
+
         if let destination = workspaceContext.sshDestination {
             if let remoteWrapped = strdup(TerminalLaunchCommand.remoteShellCommand(
                 destination: destination,
@@ -193,7 +209,8 @@ final class GhosttyTerminalNSView: NSView,
                 config.command = UnsafePointer(remoteWrapped)
                 config.wait_after_command = false
             }
-        } else if let command = launchCommand,
+        } else if !startedPersistentSession,
+                  let command = launchCommand,
                   let loginWrapped = strdup(TerminalLaunchCommand.shellCommand(
                       interactive: commandInteractive,
                       keepsShellOpen: !commandClosesOnExit
@@ -260,7 +277,48 @@ final class GhosttyTerminalNSView: NSView,
         }
 
         applyOcclusionState()
+        if let persistentSessionID {
+            PersistentSessionService.shared.noteSurfaceMaterialized(sessionID: persistentSessionID)
+        }
         startAgentDetection()
+    }
+
+    private func applyPersistentSessionConfiguration(
+        _ config: inout ghostty_surface_config_s,
+        environment: inout [ghostty_env_var_s],
+        launchCommand: String?,
+        workingDirectory: String
+    ) -> Bool {
+        guard let persistentSessionID,
+              let attachCommand = PersistentSessionService.shared.attachCommand(),
+              let attachPointer = strdup(attachCommand)
+        else { return false }
+
+        surfaceCStringPointers.append(attachPointer)
+        config.command = UnsafePointer(attachPointer)
+        config.wait_after_command = false
+
+        let sessionCommand = launchCommand.map { _ in
+            TerminalLaunchCommand.shellCommand(
+                interactive: commandInteractive,
+                keepsShellOpen: !commandClosesOnExit
+            )
+        }
+        var entries = PersistentSessionService.shared.launchEnvironment(
+            sessionID: persistentSessionID,
+            workingDirectory: workingDirectory,
+            command: sessionCommand,
+            metadata: sessionMetadata
+        )
+        if let launchCommand {
+            entries.append((key: TerminalLaunchCommand.environmentKey, value: launchCommand))
+        }
+        for entry in entries {
+            guard let key = strdup(entry.key), let value = strdup(entry.value) else { continue }
+            surfaceCStringPointers.append(contentsOf: [key, value])
+            environment.append(ghostty_env_var_s(key: key, value: value))
+        }
+        return true
     }
 
     func destroySurface() {
@@ -683,6 +741,9 @@ final class GhosttyTerminalNSView: NSView,
 
     func needsConfirmQuit() -> Bool {
         guard let surface else { return false }
+        if let persistentSessionID {
+            return PersistentSessionService.shared.isRunningCommand(sessionID: persistentSessionID)
+        }
         return ghostty_surface_needs_confirm_quit(surface)
     }
 
@@ -2091,7 +2152,9 @@ final class GhosttyTerminalNSView: NSView,
 
     private func detectAgentNow() {
         guard let surface else { return }
-        let foregroundPID = ghostty_surface_foreground_pid(surface)
+        let foregroundPID = persistentSessionID == nil
+            ? ghostty_surface_foreground_pid(surface)
+            : UInt64(max(foregroundProcessID ?? 0, 0))
         let candidateNames = ForegroundProcessInspector.executableNameCandidates(pid: foregroundPID)
         let providerID = AIAgentDetector.providerID(forCandidateNames: candidateNames, executables: agentExecutables)
         watchAgentProcess(providerID: providerID, processID: foregroundPID)

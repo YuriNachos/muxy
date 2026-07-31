@@ -23,6 +23,28 @@ enum TabReducer {
         return tabID
     }
 
+    static func createSessionTab(
+        key: WorktreeKey,
+        areaID: UUID?,
+        sessionID: UUID,
+        title: String?,
+        state: inout WorkspaceState
+    ) -> UUID? {
+        guard let area = WorkspaceReducerShared.resolveArea(key: key, areaID: areaID, state: state) else { return nil }
+        FocusReducer.focusArea(area.id, key: key, state: &state)
+        let alongsideTabID = area.activeTab.map { $0.parentTabID ?? $0.id }
+        let order = normalizedTopLevelOrder(key: key, state: state)
+        let tabID = area.createSessionTab(sessionID: sessionID, title: title)
+        state.topLevelTabOrder[key] = order + [tabID]
+        TopLevelTabReducer.registerTopLevelTab(
+            tabID,
+            alongside: alongsideTabID,
+            key: key,
+            state: &state
+        )
+        return tabID
+    }
+
     static func createTabAdjacent(
         projectID: UUID,
         areaID: UUID,

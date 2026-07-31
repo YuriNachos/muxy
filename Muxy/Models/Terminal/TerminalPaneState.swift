@@ -12,6 +12,7 @@ final class TerminalPaneState: Identifiable {
     nonisolated static let defaultTitle = "Terminal"
 
     let id: UUID
+    var sessionID: UUID
     let projectPath: String
     var title: String
     private(set) var usesDefaultTitle: Bool
@@ -26,6 +27,7 @@ final class TerminalPaneState: Identifiable {
 
     init(
         id: UUID = UUID(),
+        sessionID: UUID? = nil,
         projectPath: String,
         title: String? = nil,
         usesDefaultTitle: Bool? = nil,
@@ -36,6 +38,7 @@ final class TerminalPaneState: Identifiable {
         externalEditorFilePath: String? = nil
     ) {
         self.id = id
+        self.sessionID = sessionID ?? id
         self.projectPath = projectPath
         self.title = title ?? Self.defaultTitle
         self.usesDefaultTitle = usesDefaultTitle ?? (title == nil)

@@ -367,8 +367,15 @@ struct TerminalBridge: NSViewRepresentable {
     }
 
     private func configure(_ surface: any TerminalSurface) {
-        if surface.envVars.isEmpty, !surface.hasLiveSurface, let key = worktreeKey {
-            surface.envVars = TerminalEnvVarBuilder.build(paneID: state.id, worktreeKey: key)
+        if let key = worktreeKey {
+            if surface.envVars.isEmpty, !surface.hasLiveSurface {
+                surface.envVars = TerminalEnvVarBuilder.build(paneID: state.id, worktreeKey: key)
+            }
+            surface.sessionMetadata = TerminalSessionMetadataBuilder.build(
+                worktreeKey: key,
+                tabID: appState.locateTab(forPane: state.id)?.tab.id,
+                title: state.title
+            )
         }
         surface.isFocused = focused
         surface.overlayActive = overlayActive
@@ -425,6 +432,7 @@ struct TerminalBridge: NSViewRepresentable {
         let launch = state.consumeRestoredLaunch()
         return TerminalViewRegistry.shared.view(
             for: state.id,
+            sessionID: state.sessionID,
             workingDirectory: state.currentWorkingDirectory ?? state.projectPath,
             command: launch.command,
             commandInteractive: launch.interactive,

@@ -98,13 +98,17 @@
 "Approved Devices" = "Approved Devices";
 "Are you sure you want to quit Muxy?" = "Are you sure you want to quit Muxy?";
 "Attach File" = "Attach File";
+"Active tab" = "Active tab";
 "Auto" = "Auto";
+"Detached background terminals" = "Detached background terminals";
+"Detached terminals" = "Detached terminals";
 "Auto-copy selected text" = "Auto-copy selected text";
 "Auto-expand worktrees on project switch" = "Auto-expand worktrees on project switch";
 "Autocomplete" = "Autocomplete";
 "Back" = "Back";
 "Back (%@)" = "Back (%@)";
 "Back to Extensions" = "Back to Extensions";
+"Background sessions" = "Background sessions";
 "Background vibrancy" = "Background vibrancy";
 "Backup" = "Backup";
 "Base" = "Base";
@@ -321,6 +325,7 @@
 "Environment" = "Environment";
 "Expand Worktrees" = "Expand Worktrees";
 "Expanded Style" = "Expanded Style";
+"Every background terminal in this worktree is open in a tab." = "Every background terminal in this worktree is open in a tab.";
 "Export" = "Export";
 "Export Diagnostics..." = "Export Diagnostics...";
 "Export Muxy" = "Export Muxy";
@@ -499,6 +504,7 @@
 "New Terminal Tab" = "New Terminal Tab";
 "New Workspace" = "New Workspace";
 "New Worktree" = "New Worktree";
+"New tab" = "New tab";
 "New Worktree…" = "New Worktree…";
 "New branch" = "New branch";
 "New browser tabs open to a blank page. Turn on the toggle to open them to a website instead." = "New browser tabs open to a blank page. Turn on the toggle to open them to a website instead.";
@@ -708,7 +714,11 @@
 "Revoke Selected (%lld)" = "Revoke Selected (%lld)";
 "Revoking removes the device's access. It will need to request approval again to reconnect." = "Revoking removes the device's access. It will need to request approval again to reconnect.";
 "Right" = "Right";
+"Run New Terminals in the Background" = "Run New Terminals in the Background";
+"Run new terminals in the background" = "Run new terminals in the background";
 "Run these commands after creating the worktree" = "Run these commands after creating the worktree";
+"Runs each new terminal in a separate background process, the way tmux does. Quitting Muxy leaves those terminals running and reopening reconnects them with their recent output. Closing a tab still ends its session. Terminals that are already open keep their current behaviour." = "Runs each new terminal in a separate background process, the way tmux does. Quitting Muxy leaves those terminals running and reopening reconnects them with their recent output. Closing a tab still ends its session. Terminals that are already open keep their current behaviour.";
+"Runs new terminals in a background process so they survive quitting Muxy." = "Runs new terminals in a background process so they survive quitting Muxy.";
 "Runtime Error" = "Runtime Error";
 "SSH Host" = "SSH Host";
 "Save" = "Save";
@@ -1037,7 +1047,9 @@
 "Tab Types" = "Tab Types";
 "letters, digits, dash, underscore, dot" = "letters, digits, dash, underscore, dot";
 "Status bar" = "Status bar";
+"Stop background terminals?" = "Stop background terminals?";
 "Stop loading this dev extension. Your folder is left untouched." = "Stop loading this dev extension. Your folder is left untouched.";
+"Terminals are still running in the background. Turning this off stops them and ends whatever they are running." = "Terminals are still running in the background. Turning this off stops them and ends whatever they are running.";
 "Submarine" = "Submarine";
 "Switch Worktree…" = "Switch Worktree…";
 "Switch to a branch before committing and pushing." = "Switch to a branch before committing and pushing.";

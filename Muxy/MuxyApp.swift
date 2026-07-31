@@ -87,6 +87,7 @@ struct MuxyApp: App {
                         NotificationStore.shared.appState = appState
                         NotificationStore.shared.worktreeStore = worktreeStore
                         NotificationStore.shared.markAllAsRead()
+                        PersistentSessionRecovery.shared.recoverRestoredPanes(appState: appState)
                         DesktopNotificationService.shared.start(appState: appState)
                         MemoryDiagnostics.shared.configure(appState: appState)
                         TerminalProgressStore.shared.appState = appState

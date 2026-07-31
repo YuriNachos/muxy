@@ -36,6 +36,23 @@ In **Appearance → Sidebar**, select **Tab Focused** or **Agents Focused** to s
 It is off by default. Turn it on to nest all worktrees under their project; turn it off to keep worktrees as top-level rows. Tab
 Focused shows top-level worktrees only when they have open tabs, while Agents Focused shows every secondary worktree.
 
+## Background sessions
+
+Open **Settings → Terminal → Background sessions** to keep terminals running after Muxy quits:
+
+- **Run new terminals in the background** starts each new terminal in a separate background process, like tmux. Quitting Muxy leaves those terminals running, and reopening it reconnects them along with their recent output.
+- Only terminals opened after the setting is switched on are affected. Terminals that are already open keep their current behavior.
+- Reopening Muxy reattaches every restored tab whose session is still running, without waiting for you to click the tab.
+- Closing a tab ends its session. A session whose tab is gone keeps running and stays available from the status bar.
+- Turning the setting off asks for confirmation and then stops every terminal still running in the background.
+- Remote SSH terminals and the quick terminal are never run this way.
+
+The status bar shows how many background terminals in the current project and worktree are **not** open in a tab. Its popover lists those and can point the focused tab at one, open a new tab attached to one, or stop one. It disappears when nothing is waiting, so it only appears when you have something to recover.
+
+Background terminals keep working-directory tracking, tab titles, and AI progress in zsh, bash, fish, elvish, and nushell. Other shells run normally but lose those integrations, the same limitation tmux has.
+
+The setting is stored as `muxy.terminalPersistentSession.enabled` in `settings.json`. Use `muxy list-sessions` and `muxy kill-session --session <id>` to inspect and stop sessions from a shell.
+
 ## Quick terminal
 
 The assigned shortcut is the only way to open the quick terminal. On a display with a camera cutout, the terminal expands out of it like a dynamic island. Open **Quick Terminal** in Settings to configure its shortcut, size, and appearance:

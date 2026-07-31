@@ -467,6 +467,14 @@ enum SettingsCatalog {
             defaultValue: TerminalOfflinePreferences.defaultIdleThreshold
         ),
         SettingsCatalogItem(
+            key: TerminalPersistentSessionPreferences.enabledKey,
+            title: "Run New Terminals in the Background",
+            description: "Runs new terminals in a background process so they survive quitting Muxy.",
+            category: .terminal,
+            section: "Background sessions",
+            defaultValue: TerminalPersistentSessionPreferences.defaultIsEnabled
+        ),
+        SettingsCatalogItem(
             key: "shortcuts.app",
             title: "App Shortcuts",
             description: "Configures Muxy keyboard shortcuts.",

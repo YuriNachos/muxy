@@ -126,6 +126,16 @@ enum WorkspaceReducer {
             guard state.workspaceRoots[key] != nil else { break }
             effects.createdTabID = TabReducer.createTab(key: key, areaID: areaID, state: &state)
 
+        case let .createSessionTab(key, areaID, sessionID, title):
+            guard state.workspaceRoots[key] != nil else { break }
+            effects.createdTabID = TabReducer.createSessionTab(
+                key: key,
+                areaID: areaID,
+                sessionID: sessionID,
+                title: title,
+                state: &state
+            )
+
         case let .createBrowserTabInWorktree(key, areaID, url, profileID):
             guard state.workspaceRoots[key] != nil else { break }
             effects.createdTabID = TabReducer.createBrowserTab(
@@ -345,7 +355,8 @@ enum WorkspaceReducer {
             }
             return [key]
 
-        case let .createTabInWorktree(key, _),
+        case let .createSessionTab(key, _, _, _),
+             let .createTabInWorktree(key, _),
              let .createBrowserTabInWorktree(key, _, _, _),
              let .createBrowserSplitInWorktree(key, _, _, _),
              let .closeTabInWorktree(key, _, _),
