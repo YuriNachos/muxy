@@ -9,7 +9,6 @@ enum PersistentSessionPathError: Error, Equatable {
 
 enum PersistentSessionPaths {
     static let sunPathCapacity = 104
-    static let directoryName = "sessions"
     static let socketFileName = "control.sock"
     static let binaryName = "muxy-session"
 
@@ -17,30 +16,43 @@ enum PersistentSessionPaths {
         path.utf8.count < sunPathCapacity
     }
 
-    static func preferredSocketPath(appSupportDirectory: URL) -> String {
+    static func directoryName(isDevelopment: Bool = AppEnvironment.isDevelopment) -> String {
+        isDevelopment ? "sessions-dev" : "sessions"
+    }
+
+    static func preferredSocketPath(
+        appSupportDirectory: URL,
+        isDevelopment: Bool = AppEnvironment.isDevelopment
+    ) -> String {
         appSupportDirectory
-            .appendingPathComponent(directoryName, isDirectory: true)
+            .appendingPathComponent(directoryName(isDevelopment: isDevelopment), isDirectory: true)
             .appendingPathComponent(socketFileName)
             .path
     }
 
-    static func fallbackSocketPath(userID: uid_t, root: String = "/tmp") -> String {
-        "\(root)/muxy-\(userID)/\(socketFileName)"
+    static func fallbackSocketPath(
+        userID: uid_t,
+        root: String = "/tmp",
+        isDevelopment: Bool = AppEnvironment.isDevelopment
+    ) -> String {
+        let prefix = isDevelopment ? "muxy-dev" : "muxy"
+        return "\(root)/\(prefix)-\(userID)/\(socketFileName)"
     }
 
     static func resolveSocketPath(
         appSupportDirectory: URL = MuxyFileStorage.appSupportDirectory(),
         userID: uid_t = getuid(),
         fallbackRoot: String = "/tmp",
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        isDevelopment: Bool = AppEnvironment.isDevelopment
     ) throws -> String {
-        let preferred = preferredSocketPath(appSupportDirectory: appSupportDirectory)
+        let preferred = preferredSocketPath(appSupportDirectory: appSupportDirectory, isDevelopment: isDevelopment)
         if fits(preferred) {
             try prepareDirectory(at: URL(fileURLWithPath: preferred).deletingLastPathComponent(), fileManager: fileManager)
             return preferred
         }
 
-        let fallback = fallbackSocketPath(userID: userID, root: fallbackRoot)
+        let fallback = fallbackSocketPath(userID: userID, root: fallbackRoot, isDevelopment: isDevelopment)
         guard fits(fallback) else { throw PersistentSessionPathError.pathTooLong }
         let directory = URL(fileURLWithPath: fallback).deletingLastPathComponent()
         try prepareDirectory(at: directory, fileManager: fileManager)

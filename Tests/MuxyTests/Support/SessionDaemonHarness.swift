@@ -29,11 +29,12 @@ final class SessionDaemonHarness {
         socketPath = directory.appendingPathComponent("c.sock").path
     }
 
-    func start() throws {
+    func start(idleTimeoutMilliseconds: Int? = nil) throws {
         guard let binaryURL = Self.binaryURL else { return }
         let process = Process()
         process.executableURL = binaryURL
         process.arguments = ["daemon", "--socket", socketPath]
+            + (idleTimeoutMilliseconds.map { ["--idle-timeout", String($0)] } ?? [])
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
@@ -59,6 +60,58 @@ final class SessionDaemonHarness {
         daemon?.waitUntilExit()
         daemon = nil
         try? FileManager.default.removeItem(at: directory)
+    }
+
+    struct AttachClientResult {
+        let status: Int32
+        let output: String
+    }
+
+    func runAttachClient(
+        identifier: SessionIdentifier,
+        command: String,
+        timeout: TimeInterval
+    ) throws -> AttachClientResult {
+        guard let binaryURL = Self.binaryURL else {
+            return AttachClientResult(status: -1, output: "")
+        }
+        let process = Process()
+        process.executableURL = binaryURL
+        process.arguments = ["attach"]
+        process.environment = [
+            "PATH": "/usr/bin:/bin",
+            "MUXY_SESSION_ID": identifier.uuidString,
+            "MUXY_SESSION_SOCKET": socketPath,
+            "MUXY_SESSION_BINARY": binaryURL.path,
+            "MUXY_SESSION_SHELL": "/bin/sh",
+            "MUXY_SESSION_CWD": "/tmp",
+            "MUXY_SESSION_COMMAND": command,
+        ]
+
+        let outputURL = directory.appendingPathComponent("attach-\(identifier.uuidString).log")
+        FileManager.default.createFile(atPath: outputURL.path, contents: nil)
+        let outputHandle = try FileHandle(forWritingTo: outputURL)
+        let input = Pipe()
+        process.standardInput = input
+        process.standardOutput = outputHandle
+        process.standardError = outputHandle
+        try process.run()
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            usleep(20_000)
+        }
+        if process.isRunning {
+            process.terminate()
+        }
+        process.waitUntilExit()
+        input.fileHandleForWriting.closeFile()
+        try? outputHandle.close()
+
+        return AttachClientResult(
+            status: process.terminationStatus,
+            output: (try? String(contentsOf: outputURL, encoding: .utf8)) ?? ""
+        )
     }
 
     func attachRequest(

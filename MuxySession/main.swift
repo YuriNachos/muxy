@@ -61,7 +61,9 @@ case "daemon":
     guard let socketPath = argumentValue("--socket", in: arguments) else {
         fail("usage: muxy-session daemon --socket <path>")
     }
-    guard let daemon = SessionDaemon(socketPath: socketPath) else {
+    let idleTimeout = argumentValue("--idle-timeout", in: arguments)
+        .flatMap(Int32.init) ?? SessionDaemon.idleTimeoutMilliseconds
+    guard let daemon = SessionDaemon(socketPath: socketPath, idleTimeoutMilliseconds: idleTimeout) else {
         exit(0)
     }
     daemon.run()

@@ -5,6 +5,12 @@ import os
 
 private let logger = Logger(subsystem: "app.muxy", category: "PersistentSession")
 
+enum PersistentSessionLookup: Equatable, Sendable {
+    case found(SessionDescriptor)
+    case absent
+    case unreachable
+}
+
 struct PersistentSessionControlClient: Sendable {
     static let defaultTimeout: TimeInterval = 2
 
@@ -15,28 +21,46 @@ struct PersistentSessionControlClient: Sendable {
     }
 
     func info(identifier: SessionIdentifier, timeout: TimeInterval = defaultTimeout) -> SessionDescriptor? {
-        descriptors(
-            for: SessionFrame(kind: .info, payload: SessionIdentifierPayload.encode(identifier)),
+        guard case let .found(descriptor) = lookup(identifier: identifier, timeout: timeout) else { return nil }
+        return descriptor
+    }
+
+    func lookup(identifier: SessionIdentifier, timeout: TimeInterval = defaultTimeout) -> PersistentSessionLookup {
+        let response = exchange(
+            SessionFrame(kind: .info, payload: SessionIdentifierPayload.encode(identifier)),
+            expecting: .sessions,
             timeout: timeout
-        ).first
+        )
+        guard case let .frame(frame) = response else { return .unreachable }
+        do {
+            guard let descriptor = try SessionDescriptor.decodeList(frame.payload).first else { return .absent }
+            return .found(descriptor)
+        } catch {
+            logger.error("failed to decode the session lookup: \(String(describing: error))")
+            return .unreachable
+        }
     }
 
     @discardableResult
     func kill(identifier: SessionIdentifier, timeout: TimeInterval = defaultTimeout) -> Bool {
-        exchange(
+        acknowledged(
             SessionFrame(kind: .kill, payload: SessionIdentifierPayload.encode(identifier)),
-            expecting: .acknowledged,
             timeout: timeout
-        ) != nil
+        )
     }
 
     @discardableResult
     func killAll(timeout: TimeInterval = defaultTimeout) -> Bool {
-        exchange(SessionFrame(kind: .killAll), expecting: .acknowledged, timeout: timeout) != nil
+        acknowledged(SessionFrame(kind: .killAll), timeout: timeout)
+    }
+
+    private enum ExchangeResult {
+        case frame(SessionFrame)
+        case unreachable
     }
 
     private func descriptors(for frame: SessionFrame, timeout: TimeInterval) -> [SessionDescriptor] {
-        guard let response = exchange(frame, expecting: .sessions, timeout: timeout) else { return [] }
+        guard case let .frame(response) = exchange(frame, expecting: .sessions, timeout: timeout) else { return [] }
         do {
             return try SessionDescriptor.decodeList(response.payload)
         } catch {
@@ -45,20 +69,27 @@ struct PersistentSessionControlClient: Sendable {
         }
     }
 
+    private func acknowledged(_ frame: SessionFrame, timeout: TimeInterval) -> Bool {
+        guard case .frame = exchange(frame, expecting: .acknowledged, timeout: timeout) else { return false }
+        return true
+    }
+
     private func exchange(
         _ frame: SessionFrame,
         expecting kind: SessionFrameKind,
         timeout: TimeInterval
-    ) -> SessionFrame? {
-        guard let descriptor = PersistentSessionSocket.connect(path: socketPath) else { return nil }
+    ) -> ExchangeResult {
+        guard let descriptor = PersistentSessionSocket.connect(path: socketPath) else { return .unreachable }
         defer { close(descriptor) }
 
         let deadline = Date().addingTimeInterval(timeout)
-        guard PersistentSessionSocket.write(descriptor, bytes: frame.encoded(), deadline: deadline) else { return nil }
+        guard PersistentSessionSocket.write(descriptor, bytes: frame.encoded(), deadline: deadline) else {
+            return .unreachable
+        }
 
         var decoder = SessionFrameDecoder()
         while Date() < deadline {
-            guard let bytes = PersistentSessionSocket.read(descriptor, deadline: deadline) else { return nil }
+            guard let bytes = PersistentSessionSocket.read(descriptor, deadline: deadline) else { return .unreachable }
             decoder.push(bytes)
             while true {
                 let next: SessionFrame?
@@ -66,15 +97,15 @@ struct PersistentSessionControlClient: Sendable {
                     next = try decoder.next()
                 } catch {
                     logger.error("session daemon sent a malformed frame")
-                    return nil
+                    return .unreachable
                 }
                 guard let next else { break }
                 if next.kind == kind {
-                    return next
+                    return .frame(next)
                 }
             }
         }
-        return nil
+        return .unreachable
     }
 }
 

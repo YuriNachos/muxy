@@ -123,14 +123,29 @@ struct PersistentSessionPathsTests {
     @Test("builds the socket path inside the app support directory")
     func buildsPreferredPath() {
         let directory = URL(fileURLWithPath: "/Users/test/Library/Application Support/Muxy", isDirectory: true)
-        let path = PersistentSessionPaths.preferredSocketPath(appSupportDirectory: directory)
-        #expect(path == "/Users/test/Library/Application Support/Muxy/sessions/control.sock")
+        let releasePath = PersistentSessionPaths.preferredSocketPath(appSupportDirectory: directory, isDevelopment: false)
+        let developmentPath = PersistentSessionPaths.preferredSocketPath(appSupportDirectory: directory, isDevelopment: true)
+        #expect(releasePath == "/Users/test/Library/Application Support/Muxy/sessions/control.sock")
+        #expect(developmentPath == "/Users/test/Library/Application Support/Muxy/sessions-dev/control.sock")
     }
 
     @Test("scopes the fallback path to the user")
     func buildsFallbackPath() {
-        #expect(PersistentSessionPaths.fallbackSocketPath(userID: 501) == "/tmp/muxy-501/control.sock")
-        #expect(PersistentSessionPaths.fits(PersistentSessionPaths.fallbackSocketPath(userID: 4_294_967_295)))
+        #expect(PersistentSessionPaths.fallbackSocketPath(userID: 501, isDevelopment: false) == "/tmp/muxy-501/control.sock")
+        #expect(PersistentSessionPaths.fallbackSocketPath(userID: 501, isDevelopment: true) == "/tmp/muxy-dev-501/control.sock")
+        #expect(PersistentSessionPaths.fits(PersistentSessionPaths.fallbackSocketPath(userID: 4_294_967_295, isDevelopment: false)))
+        #expect(PersistentSessionPaths.fits(PersistentSessionPaths.fallbackSocketPath(userID: 4_294_967_295, isDevelopment: true)))
+    }
+
+    @Test("keeps development and release paths separate")
+    func separatesDevelopmentAndReleasePaths() {
+        let directory = URL(fileURLWithPath: "/Users/test/Library/Application Support/Muxy", isDirectory: true)
+        let releasePreferred = PersistentSessionPaths.preferredSocketPath(appSupportDirectory: directory, isDevelopment: false)
+        let developmentPreferred = PersistentSessionPaths.preferredSocketPath(appSupportDirectory: directory, isDevelopment: true)
+        let releaseFallback = PersistentSessionPaths.fallbackSocketPath(userID: 501, isDevelopment: false)
+        let developmentFallback = PersistentSessionPaths.fallbackSocketPath(userID: 501, isDevelopment: true)
+        #expect(releasePreferred != developmentPreferred)
+        #expect(releaseFallback != developmentFallback)
     }
 
     private func makeFallbackRoot() throws -> URL {
@@ -148,8 +163,18 @@ struct PersistentSessionPathsTests {
     func resolvesPreferredPath() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mx-\(UUID().uuidString.prefix(6))")
         defer { try? FileManager.default.removeItem(at: root) }
-        let resolved = try PersistentSessionPaths.resolveSocketPath(appSupportDirectory: root, userID: getuid())
-        #expect(resolved == PersistentSessionPaths.preferredSocketPath(appSupportDirectory: root))
+        let resolved = try PersistentSessionPaths.resolveSocketPath(appSupportDirectory: root, userID: getuid(), isDevelopment: false)
+        #expect(resolved == PersistentSessionPaths.preferredSocketPath(appSupportDirectory: root, isDevelopment: false))
+        #expect(FileManager.default.fileExists(atPath: URL(fileURLWithPath: resolved).deletingLastPathComponent().path))
+    }
+
+    @Test("resolves the development socket path into its own directory")
+    func resolvesDevelopmentPreferredPath() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("mx-\(UUID().uuidString.prefix(6))")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resolved = try PersistentSessionPaths.resolveSocketPath(appSupportDirectory: root, userID: getuid(), isDevelopment: true)
+        #expect(resolved == PersistentSessionPaths.preferredSocketPath(appSupportDirectory: root, isDevelopment: true))
+        #expect(resolved.contains("sessions-dev"))
         #expect(FileManager.default.fileExists(atPath: URL(fileURLWithPath: resolved).deletingLastPathComponent().path))
     }
 
@@ -161,9 +186,10 @@ struct PersistentSessionPathsTests {
         let resolved = try PersistentSessionPaths.resolveSocketPath(
             appSupportDirectory: overlongAppSupportDirectory,
             userID: getuid(),
-            fallbackRoot: root.path
+            fallbackRoot: root.path,
+            isDevelopment: false
         )
-        #expect(resolved == PersistentSessionPaths.fallbackSocketPath(userID: getuid(), root: root.path))
+        #expect(resolved == PersistentSessionPaths.fallbackSocketPath(userID: getuid(), root: root.path, isDevelopment: false))
         #expect(FileManager.default.fileExists(atPath: URL(fileURLWithPath: resolved).deletingLastPathComponent().path))
     }
 
@@ -172,7 +198,7 @@ struct PersistentSessionPathsTests {
         let root = try makeFallbackRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        let directory = URL(fileURLWithPath: PersistentSessionPaths.fallbackSocketPath(userID: getuid(), root: root.path))
+        let directory = URL(fileURLWithPath: PersistentSessionPaths.fallbackSocketPath(userID: getuid(), root: root.path, isDevelopment: false))
             .deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directory,
@@ -183,7 +209,8 @@ struct PersistentSessionPathsTests {
         _ = try PersistentSessionPaths.resolveSocketPath(
             appSupportDirectory: overlongAppSupportDirectory,
             userID: getuid(),
-            fallbackRoot: root.path
+            fallbackRoot: root.path,
+            isDevelopment: false
         )
 
         let permissions = try #require(
@@ -198,7 +225,7 @@ struct PersistentSessionPathsTests {
         defer { try? FileManager.default.removeItem(at: root) }
 
         let foreignUserID = getuid() &+ 1
-        let directory = URL(fileURLWithPath: PersistentSessionPaths.fallbackSocketPath(userID: foreignUserID, root: root.path))
+        let directory = URL(fileURLWithPath: PersistentSessionPaths.fallbackSocketPath(userID: foreignUserID, root: root.path, isDevelopment: false))
             .deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
@@ -206,7 +233,8 @@ struct PersistentSessionPathsTests {
             try PersistentSessionPaths.resolveSocketPath(
                 appSupportDirectory: overlongAppSupportDirectory,
                 userID: foreignUserID,
-                fallbackRoot: root.path
+                fallbackRoot: root.path,
+                isDevelopment: false
             )
         }
     }

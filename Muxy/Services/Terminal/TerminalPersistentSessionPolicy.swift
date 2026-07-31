@@ -18,4 +18,16 @@ enum TerminalPersistentSessionPolicy {
             isAvailable: PersistentSessionService.shared.isAvailable
         )
     }
+
+    static func isIdle(
+        activity: SessionCommandActivity?,
+        isShellCommandRunning: Bool,
+        isAlternateScreen: Bool
+    ) -> Bool {
+        guard let activity else { return false }
+        return TerminalOfflinePolicy.isIdle(
+            hasRunningProcess: activity == .running || isShellCommandRunning,
+            isAlternateScreen: isAlternateScreen
+        )
+    }
 }

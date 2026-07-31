@@ -4,6 +4,11 @@ import os
 
 private let logger = Logger(subsystem: "app.muxy", category: "PersistentSession")
 
+enum SessionCommandActivity: Equatable, Sendable {
+    case idle
+    case running
+}
+
 @MainActor
 final class PersistentSessionService {
     static let shared = PersistentSessionService()
@@ -115,11 +120,33 @@ final class PersistentSessionService {
     }
 
     func isRunningCommand(sessionID: UUID) -> Bool {
-        guard let descriptor = descriptors[sessionID] else { return false }
+        commandActivity(sessionID: sessionID) == .running
+    }
+
+    func commandActivity(sessionID: UUID) -> SessionCommandActivity? {
+        guard let descriptor = descriptors[sessionID] else {
+            refreshDescriptor(sessionID: sessionID)
+            return nil
+        }
+        guard let foregroundProcessID = TerminalTTYForegroundProcess.processID(ttyDevice: descriptor.ttyDevice) else {
+            descriptors.removeValue(forKey: sessionID)
+            refreshDescriptor(sessionID: sessionID)
+            return nil
+        }
         return TerminalTTYForegroundProcess.isRunningCommand(
-            foregroundProcessID: TerminalTTYForegroundProcess.processID(ttyDevice: descriptor.ttyDevice),
+            foregroundProcessID: foregroundProcessID,
             shellProcessID: descriptor.shellProcessID
-        )
+        ) ? .running : .idle
+    }
+
+    func lookup(sessionID: UUID) async -> PersistentSessionLookup {
+        guard let socketPath = existingSocketPath, let identifier = Self.sessionIdentifier(sessionID) else {
+            return .unreachable
+        }
+        let client = PersistentSessionControlClient(socketPath: socketPath)
+        return await Task.detached(priority: .utility) {
+            client.lookup(identifier: identifier)
+        }.value
     }
 
     func endSession(sessionID: UUID) {

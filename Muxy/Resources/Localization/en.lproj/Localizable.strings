@@ -109,6 +109,7 @@
 "Back" = "Back";
 "Back (%@)" = "Back (%@)";
 "Back to Extensions" = "Back to Extensions";
+"Background session unreachable" = "Background session unreachable";
 "Background sessions" = "Background sessions";
 "Background vibrancy" = "Background vibrancy";
 "Backup" = "Backup";
@@ -478,6 +479,7 @@
 "Muxy Picker can use Finder or Muxy's picker. Projects can stay in the sidebar after closing their last tab." = "Muxy Picker can use Finder or Muxy's picker. Projects can stay in the sidebar after closing their last tab.";
 "Muxy Picker searches this location by folder name. Use App Default to search your home folder. Projects can stay in the sidebar after closing their last tab." = "Muxy Picker searches this location by folder name. Use App Default to search your home folder. Projects can stay in the sidebar after closing their last tab.";
 "Muxy can only add folders as projects. Choose a folder or type a new folder path." = "Muxy can only add folders as projects. Choose a folder or type a new folder path.";
+"Muxy could not reconnect to this terminal. The session was left running." = "Muxy could not reconnect to this terminal. The session was left running.";
 "Muxy can send anonymous crash and error reports so we can fix bugs faster. No personal data, no project contents, no file paths are sent — only crash details and an anonymous installation ID.\n\nYou can change this anytime in Settings → General → Diagnostics." = "Muxy can send anonymous crash and error reports so we can fix bugs faster. No personal data, no project contents, no file paths are sent — only crash details and an anonymous installation ID.\n\nYou can change this anytime in Settings → General → Diagnostics.";
 "Muxy couldn't add \"%@\". Check that the folder exists and you have permission to use it." = "Muxy couldn't add \"%@\". Check that the folder exists and you have permission to use it.";
 "Muxy couldn't create and add \"%@\". Check that you have permission to use this location." = "Muxy couldn't create and add \"%@\". Check that you have permission to use this location.";
@@ -688,6 +690,8 @@
 "Report an Issue..." = "Report an Issue...";
 "Repository unavailable" = "Repository unavailable";
 "Repository unavailable. Click to retry." = "Repository unavailable. Click to retry.";
+"Reconnect" = "Reconnect";
+"Reconnect to the background terminal session" = "Reconnect to the background terminal session";
 "Reset" = "Reset";
 "Reset All" = "Reset All";
 "Reset Icon Color" = "Reset Icon Color";

@@ -936,12 +936,14 @@ final class AppState {
             terminalViews.removeView(for: paneID)
             TerminalProgressStore.shared.resetPane(paneID)
             DetectedAgentStore.shared.resetPane(paneID)
+            PersistentSessionExitHandler.shared.resetPane(paneID)
         }
 
         for paneID in effects.paneIDsToRelease {
             terminalViews.releaseViewPreservingSession(for: paneID)
             TerminalProgressStore.shared.resetPane(paneID)
             DetectedAgentStore.shared.resetPane(paneID)
+            PersistentSessionExitHandler.shared.resetPane(paneID)
         }
 
         if case let .removeProject(projectID) = action {

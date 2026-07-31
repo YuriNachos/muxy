@@ -10,6 +10,7 @@ final class SessionDaemon {
     static let replayChunkSize = 32 * 1024
 
     private let socketPath: String
+    private let idleTimeout: Int32
     private let listener: Int32
     private let lockDescriptor: Int32
     private let signalPipe: SessionSignalPipe
@@ -19,8 +20,9 @@ final class SessionDaemon {
     private var connections: [Int32: SessionConnection] = [:]
     private var closingDescriptors: [Int32] = []
 
-    init?(socketPath: String) {
+    init?(socketPath: String, idleTimeoutMilliseconds: Int32 = SessionDaemon.idleTimeoutMilliseconds) {
         self.socketPath = socketPath
+        idleTimeout = idleTimeoutMilliseconds
         signal(SIGPIPE, SIG_IGN)
         signal(SIGHUP, SIG_IGN)
 
@@ -46,9 +48,11 @@ final class SessionDaemon {
         while true {
             let isIdle = sessions.isEmpty && connections.isEmpty
             var descriptors = buildPollDescriptors()
-            let ready = poll(&descriptors, nfds_t(descriptors.count), isIdle ? Self.idleTimeoutMilliseconds : -1)
+            let ready = poll(&descriptors, nfds_t(descriptors.count), isIdle ? idleTimeout : -1)
             if ready == 0 {
                 guard sessions.isEmpty, connections.isEmpty else { continue }
+                acceptConnections()
+                guard connections.isEmpty else { continue }
                 break
             }
             if ready < 0 {

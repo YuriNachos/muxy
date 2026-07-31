@@ -11,7 +11,8 @@ final class GhosttyTerminalNSView: NSView,
     TerminalOfflineSurface,
     TerminalSearchSurface,
     TerminalImagePasteSurface,
-    TerminalBackgroundingSurface
+    TerminalBackgroundingSurface,
+    TerminalSessionRecoverySurface
 {
     nonisolated(unsafe) private(set) var surface: ghostty_surface_t?
     var terminalView: NSView { self }
@@ -34,6 +35,8 @@ final class GhosttyTerminalNSView: NSView,
     var onSplitRequest: ((SplitDirection, SplitPosition) -> Void)?
     var canSendToBackground: (() -> Bool)?
     var onSendToBackground: (() -> Void)?
+    var onSessionRecoveryFailed: ((Bool) -> Void)?
+    private(set) var isSessionRecoveryFailed = false
     var onSearchStart: ((String?) -> Void)?
     var onSearchEnd: (() -> Void)?
     var onSearchTotal: ((Int?) -> Void)?
@@ -162,7 +165,7 @@ final class GhosttyTerminalNSView: NSView,
     private var pendingSurfaceCreation = false
 
     func createSurface() {
-        guard surface == nil, let app = GhosttyService.shared.app else { return }
+        guard surface == nil, !isSessionRecoveryFailed, let app = GhosttyService.shared.app else { return }
 
         guard let backingSize = backingPixelSize() else {
             pendingSurfaceCreation = true
@@ -378,6 +381,7 @@ final class GhosttyTerminalNSView: NSView,
         onSplitRequest = nil
         canSendToBackground = nil
         onSendToBackground = nil
+        onSessionRecoveryFailed = nil
         onSearchStart = nil
         onSearchEnd = nil
         onSearchTotal = nil
@@ -587,6 +591,13 @@ final class GhosttyTerminalNSView: NSView,
 
     func isTerminalIdle() -> Bool {
         guard let surface else { return true }
+        if let persistentSessionID {
+            return TerminalPersistentSessionPolicy.isIdle(
+                activity: PersistentSessionService.shared.commandActivity(sessionID: persistentSessionID),
+                isShellCommandRunning: shellActivityTracker.isCommandRunning,
+                isAlternateScreen: isAlternateScreenActive(surface: surface)
+            )
+        }
         if ghostty_surface_needs_confirm_quit(surface) {
             return false
         }
@@ -628,6 +639,23 @@ final class GhosttyTerminalNSView: NSView,
         destroySurface()
         isOfflinedState = true
         onOfflineChange?(true)
+    }
+
+    func reattachPersistentSession() {
+        guard persistentSessionID != nil else { return }
+        destroySurface()
+        isSessionRecoveryFailed = false
+        onSessionRecoveryFailed?(false)
+        processExitHandled = false
+        createSurface()
+        applyOcclusionState()
+    }
+
+    func reportSessionRecoveryFailure() {
+        guard persistentSessionID != nil, !isSessionRecoveryFailed else { return }
+        destroySurface()
+        isSessionRecoveryFailed = true
+        onSessionRecoveryFailed?(true)
     }
 
     func applyColorScheme(isDark: Bool) {

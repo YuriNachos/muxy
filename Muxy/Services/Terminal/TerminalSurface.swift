@@ -94,6 +94,15 @@ protocol TerminalBackgroundingSurface: AnyObject {
 }
 
 @MainActor
+protocol TerminalSessionRecoverySurface: AnyObject {
+    var onSessionRecoveryFailed: ((Bool) -> Void)? { get set }
+    var isSessionRecoveryFailed: Bool { get }
+
+    func reattachPersistentSession()
+    func reportSessionRecoveryFailure()
+}
+
+@MainActor
 protocol TerminalInputSubmissionTarget: AnyObject {
     func sendRemoteBytes(_ bytes: Data)
     func submitRichInput(text: String)

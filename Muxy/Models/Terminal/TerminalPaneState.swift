@@ -22,6 +22,7 @@ final class TerminalPaneState: Identifiable {
     let closesOnStartupCommandExit: Bool
     let externalEditorFilePath: String?
     var isOffline = false
+    var sessionRecoveryFailed = false
     let searchState = TerminalSearchState()
     @ObservationIgnored private var titleDebounceTask: Task<Void, Never>?
 
