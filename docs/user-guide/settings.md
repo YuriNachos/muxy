@@ -53,7 +53,7 @@ Open **Settings → Terminal → Background sessions** to keep terminals running
 - **Run new terminals in the background** starts each new terminal in a separate background process, like tmux. Quitting Muxy leaves those terminals running, and reopening it reconnects them along with their recent output.
 - Only terminals opened after the setting is switched on are affected. Terminals that are already open keep their current behavior.
 - Reopening Muxy reattaches every restored tab whose session is still running, without waiting for you to click the tab.
-- Closing a tab ends its session. A session whose tab is gone keeps running and stays available from the status bar.
+- Closing a tab ends its session. Right-click an eligible local terminal and choose **Send to Background** to close its tab without stopping its processes; the session then stays available from the status bar.
 - Turning the setting off asks for confirmation and then stops every terminal still running in the background.
 - Remote SSH terminals and the quick terminal are never run this way.
 

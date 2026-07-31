@@ -20,7 +20,9 @@ Every attach carries metadata identifying the project, worktree, tab, and title 
 
 Reopening Muxy reattaches every restored pane whose session is still running, without waiting for you to click the tab, so output keeps flowing and scrollback keeps building from the moment the window appears.
 
-Closing a tab ends its session. Sessions are never killed behind your back otherwise: one whose tab is gone keeps running and shows up in the status bar as detached, where you can reattach or stop it.
+Closing a tab ends its session. To keep a local background-backed tab running without its visible terminal, right-click inside the terminal and choose **Send to Background**. The tab closes without stopping its processes and its sessions appear in the status bar as detached. A split tab moves all of its terminal sessions together. The action is unavailable for pinned tabs, mixed-content splits, remote terminals, and terminals opened without background sessions enabled.
+
+Sessions are never killed behind your back otherwise: one whose tab is gone keeps running and shows up in the status bar as detached, where you can reattach or stop it. Sending the final visible tab to the background keeps its project and worktree open so the status-bar entry remains accessible.
 
 The status bar lists only the sessions in the current project and worktree that **no tab currently owns**, since a session already open in a tab is not something you need to recover. Ownership is decided by the pane pointing at the session, not by whether a client happens to be connected, so a tab whose terminal was freed by the idle-memory setting still counts as owning its session. When every session in the worktree is open in a tab, the status bar item disappears entirely.
 
@@ -154,7 +156,7 @@ the control that was focused before recording and can optionally press Return af
 
 ## Right-click menu
 
-Inside a terminal pane: **Paste**, **Split Right**, **Split Left**, **Split Down**, **Split Up**, and **Terminal Settings…**. Terminal Settings opens Muxy's settings directly on the Terminal section.
+Inside a terminal pane: **Paste**, **Send to Background**, **Split Right**, **Split Left**, **Split Down**, **Split Up**, and **Terminal Settings…**. Terminal Settings opens Muxy's settings directly on the Terminal section. Send to Background closes an eligible local background-backed tab while leaving its processes running.
 
 Splitting creates a child pane inside the current top-level tab. Each pane keeps its own terminal, browser, source-control, or extension surface, while a one-pixel divider replaces the old per-pane tab strip. Child panes do not appear as separate entries in the window tab strip or the Tab Focused sidebar. An agent running in a child pane does appear as its own entry in the Agents Focused sidebar, and selecting it activates both the child pane and its parent top-level tab.
 

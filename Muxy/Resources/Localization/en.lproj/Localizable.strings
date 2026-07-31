@@ -756,6 +756,7 @@
 "Selected" = "Selected";
 "Selection" = "Selection";
 "Send" = "Send";
+"Send to Background" = "Send to Background";
 "Send Without Enter" = "Send Without Enter";
 "Send anonymous crash reports" = "Send anonymous crash reports";
 "Send to Active Pane" = "Send to Active Pane";

@@ -71,7 +71,8 @@ struct TerminalSettingsView: View {
                 footer: """
                 Runs each new terminal in a separate background process, the way tmux does. Quitting Muxy leaves \
                 those terminals running and reopening reconnects them with their recent output. Closing a tab still \
-                ends its session. Terminals that are already open keep their current behaviour.
+                ends its session. Use Send to Background from a terminal's context menu to close an eligible tab \
+                without stopping its processes. Terminals that are already open keep their current behaviour.
                 """
             ) {
                 SettingsToggleRow(

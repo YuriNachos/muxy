@@ -72,6 +72,14 @@ final class TerminalViewRegistry {
         return view
     }
 
+    func hasPersistentSession(for paneID: UUID, sessionID: UUID) -> Bool {
+        views[paneID]?.persistentSessionID == sessionID
+    }
+
+    func releaseViewPreservingSession(for paneID: UUID) {
+        releaseView(for: paneID)
+    }
+
     func prepareForTermination() async {
         for view in views.values {
             view.scheduleTerminationCleanup()

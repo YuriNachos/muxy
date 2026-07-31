@@ -10,7 +10,8 @@ final class GhosttyTerminalNSView: NSView,
     TerminalClientThemeSurface,
     TerminalOfflineSurface,
     TerminalSearchSurface,
-    TerminalImagePasteSurface
+    TerminalImagePasteSurface,
+    TerminalBackgroundingSurface
 {
     nonisolated(unsafe) private(set) var surface: ghostty_surface_t?
     var terminalView: NSView { self }
@@ -31,6 +32,7 @@ final class GhosttyTerminalNSView: NSView,
     var onExternalDragHoverChange: ((Bool) -> Void)?
     var onProcessExit: (() -> Void)?
     var onSplitRequest: ((SplitDirection, SplitPosition) -> Void)?
+    var onSendToBackground: (() -> Void)?
     var onSearchStart: ((String?) -> Void)?
     var onSearchEnd: (() -> Void)?
     var onSearchTotal: ((Int?) -> Void)?
@@ -373,6 +375,7 @@ final class GhosttyTerminalNSView: NSView,
         onExternalDragHoverChange = nil
         onProcessExit = nil
         onSplitRequest = nil
+        onSendToBackground = nil
         onSearchStart = nil
         onSearchEnd = nil
         onSearchTotal = nil
@@ -1455,6 +1458,14 @@ final class GhosttyTerminalNSView: NSView,
         }
         paste.isEnabled = NSPasteboard.general.string(forType: .string).map { !$0.isEmpty } ?? pasteboardHasImage()
         menu.addItem(paste)
+
+        menu.addItem(.separator())
+
+        let sendToBackground = ClosureMenuItem(title: L10n.string("Send to Background")) { [weak self] in
+            self?.onSendToBackground?()
+        }
+        sendToBackground.isEnabled = persistentSessionID != nil && onSendToBackground != nil
+        menu.addItem(sendToBackground)
 
         menu.addItem(.separator())
 

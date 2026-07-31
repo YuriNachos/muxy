@@ -20,6 +20,7 @@ struct WorkspaceSideEffects {
     }
 
     var paneIDsToRemove: [UUID] = []
+    var paneIDsToRelease: [UUID] = []
     var projectIDsToRemove: [UUID] = []
     var deferredAreaCollapses: [DeferredAreaCollapse] = []
     var createdTabID: UUID?
@@ -172,6 +173,10 @@ enum WorkspaceReducer {
         case let .closeTabInWorktree(key, areaID, tabID):
             guard state.workspaceRoots[key] != nil else { break }
             TabReducer.closeTab(tabID, areaID: areaID, key: key, state: &state, effects: &effects)
+
+        case let .sendTabToBackground(key, tabID):
+            guard state.workspaceRoots[key] != nil else { break }
+            TabReducer.sendTabToBackground(tabID, key: key, state: &state, effects: &effects)
 
         case let .selectTab(projectID, areaID, tabID):
             TabReducer.selectTab(projectID: projectID, areaID: areaID, tabID: tabID, state: &state)
@@ -360,6 +365,7 @@ enum WorkspaceReducer {
              let .createBrowserTabInWorktree(key, _, _, _),
              let .createBrowserSplitInWorktree(key, _, _, _),
              let .closeTabInWorktree(key, _, _),
+             let .sendTabToBackground(key, _),
              let .selectTabInWorktree(key, _, _),
              let .selectNextTabInWorktree(key),
              let .selectPreviousTabInWorktree(key),
