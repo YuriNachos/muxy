@@ -89,6 +89,7 @@ protocol TerminalImagePasteSurface: AnyObject {
 
 @MainActor
 protocol TerminalBackgroundingSurface: AnyObject {
+    var canSendToBackground: (() -> Bool)? { get set }
     var onSendToBackground: (() -> Void)? { get set }
 }
 

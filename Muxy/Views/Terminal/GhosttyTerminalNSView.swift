@@ -32,6 +32,7 @@ final class GhosttyTerminalNSView: NSView,
     var onExternalDragHoverChange: ((Bool) -> Void)?
     var onProcessExit: (() -> Void)?
     var onSplitRequest: ((SplitDirection, SplitPosition) -> Void)?
+    var canSendToBackground: (() -> Bool)?
     var onSendToBackground: (() -> Void)?
     var onSearchStart: ((String?) -> Void)?
     var onSearchEnd: (() -> Void)?
@@ -375,6 +376,7 @@ final class GhosttyTerminalNSView: NSView,
         onExternalDragHoverChange = nil
         onProcessExit = nil
         onSplitRequest = nil
+        canSendToBackground = nil
         onSendToBackground = nil
         onSearchStart = nil
         onSearchEnd = nil
@@ -1452,6 +1454,7 @@ final class GhosttyTerminalNSView: NSView,
         settingsFocusCoordinator: SettingsFocusCoordinator = .shared
     ) -> NSMenu {
         let menu = NSMenu(title: L10n.string("Terminal"))
+        menu.autoenablesItems = false
 
         let paste = ClosureMenuItem(title: L10n.string("Paste")) { [weak self] in
             self?.performContextPaste()
@@ -1464,7 +1467,7 @@ final class GhosttyTerminalNSView: NSView,
         let sendToBackground = ClosureMenuItem(title: L10n.string("Send to Background")) { [weak self] in
             self?.onSendToBackground?()
         }
-        sendToBackground.isEnabled = persistentSessionID != nil && onSendToBackground != nil
+        sendToBackground.isEnabled = persistentSessionID != nil && canSendToBackground?() == true
         menu.addItem(sendToBackground)
 
         menu.addItem(.separator())

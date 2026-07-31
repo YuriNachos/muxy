@@ -386,12 +386,12 @@ struct TerminalBridge: NSViewRepresentable {
         surface.onProcessExit = onProcessExit
         surface.onSplitRequest = onSplitRequest
         if let backgroundingSurface = surface as? any TerminalBackgroundingSurface {
-            if appState.canSendTabToBackground(paneID: state.id) {
-                backgroundingSurface.onSendToBackground = { [weak appState] in
-                    appState?.sendTabToBackground(paneID: state.id)
-                }
-            } else {
-                backgroundingSurface.onSendToBackground = nil
+            let paneID = state.id
+            backgroundingSurface.canSendToBackground = { [weak appState] in
+                appState?.canSendTabToBackground(paneID: paneID) ?? false
+            }
+            backgroundingSurface.onSendToBackground = { [weak appState] in
+                appState?.sendTabToBackground(paneID: paneID)
             }
         }
         surface.onExternalDragHoverChange = makeExternalDragHoverHandler(areaID: areaID)

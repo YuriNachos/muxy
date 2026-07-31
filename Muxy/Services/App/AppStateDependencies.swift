@@ -58,13 +58,3 @@ protocol TerminalViewRemoving {
     func hasPersistentSession(for paneID: UUID, sessionID: UUID) -> Bool
     func needsConfirmQuit(for paneID: UUID) -> Bool
 }
-
-extension TerminalViewRemoving {
-    func releaseViewPreservingSession(for paneID: UUID) {
-        removeView(for: paneID)
-    }
-
-    func hasPersistentSession(for _: UUID, sessionID _: UUID) -> Bool {
-        false
-    }
-}
