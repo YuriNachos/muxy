@@ -42,7 +42,7 @@ private struct SidebarTipContent: View {
             VStack(alignment: .leading, spacing: UIMetrics.spacing5) {
                 header
 
-                Text(attributedDescription(tip.description))
+                Text(TipDescriptionPresentation.attributedDescription(tip.description))
                     .font(.system(size: UIMetrics.fontBody))
                     .foregroundStyle(MuxyTheme.fg)
                     .fixedSize(horizontal: false, vertical: true)
@@ -137,11 +137,20 @@ private struct SidebarTipContent: View {
         .accessibilityLabel(label)
         .help(label)
     }
+}
 
-    private func attributedDescription(_ description: String) -> AttributedString {
-        (try? AttributedString(
-            markdown: description,
+@MainActor
+enum TipDescriptionPresentation {
+    static func attributedDescription(
+        _ description: String,
+        localization: LocalizationService = .shared
+    ) -> AttributedString {
+        let localizedDescription = localization.string(
+            LocalizedStringResource(String.LocalizationValue(description))
+        )
+        return (try? AttributedString(
+            markdown: localizedDescription,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        )) ?? AttributedString(description)
+        )) ?? AttributedString(localizedDescription)
     }
 }

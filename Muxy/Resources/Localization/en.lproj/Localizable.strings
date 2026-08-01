@@ -288,6 +288,7 @@
 "Description" = "Description";
 "Deselect All" = "Deselect All";
 "Desktop notifications" = "Desktop notifications";
+"Develop extensions for Muxy to add the features you want. [Read the extension docs](https://muxy.app/docs/extensions/overview)." = "Develop extensions for Muxy to add the features you want. [Read the extension docs](https://muxy.app/docs/extensions/overview).";
 "Device" = "Device";
 "Diagnostics" = "Diagnostics";
 "Disable Periodic Logging" = "Disable Periodic Logging";
@@ -726,8 +727,10 @@
 "Revoke Selected (%lld)" = "Revoke Selected (%lld)";
 "Revoking removes the device's access. It will need to request approval again to reconnect." = "Revoking removes the device's access. It will need to request approval again to reconnect.";
 "Right" = "Right";
+"Right-click inside a terminal to send its tab to the background." = "Right-click inside a terminal to send its tab to the background.";
 "Run New Terminals in the Background" = "Run New Terminals in the Background";
 "Run new terminals in the background" = "Run new terminals in the background";
+"Run terminals as background sessions to preserve them after Muxy closes. Enable this in Settings → Terminal → Background Sessions." = "Run terminals as background sessions to preserve them after Muxy closes. Enable this in Settings → Terminal → Background Sessions.";
 "Run these commands after creating the worktree" = "Run these commands after creating the worktree";
 "Runs each new terminal in a separate background process, the way tmux does. Quitting Muxy leaves those terminals running and reopening reconnects them with their recent output. Closing a tab still ends its session. Terminals that are already open keep their current behaviour." = "Runs each new terminal in a separate background process, the way tmux does. Quitting Muxy leaves those terminals running and reopening reconnects them with their recent output. Closing a tab still ends its session. Terminals that are already open keep their current behaviour.";
 "Runs new terminals in a background process so they survive quitting Muxy." = "Runs new terminals in a background process so they survive quitting Muxy.";
@@ -1011,6 +1014,7 @@
 "Wand and Stars" = "Wand and Stars";
 "Waveform" = "Waveform";
 "Waveform Path" = "Waveform Path";
+"Write an extension to replace the Muxy sidebar entirely. [Read the sidebar extension docs](https://muxy.app/docs/extensions/sidebars)." = "Write an extension to replace the Muxy sidebar entirely. [Read the sidebar extension docs](https://muxy.app/docs/extensions/sidebars).";
 "Wrench" = "Wrench";
 "Wrench Fill" = "Wrench Fill";
 "Yellow" = "Yellow";
