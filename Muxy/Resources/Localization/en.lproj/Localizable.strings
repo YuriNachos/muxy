@@ -197,6 +197,7 @@
 "Closed" = "Closed";
 "Closed PR #%lld" = "Closed PR #%lld";
 "Closing…" = "Closing…";
+"Collapse Composer" = "Collapse Composer";
 "Collapse Worktrees" = "Collapse Worktrees";
 "Collapsed Style" = "Collapsed Style";
 "Command" = "Command";
@@ -328,6 +329,7 @@
 "English is built in. Additional languages can be provided by enabled extensions." = "English is built in. Additional languages can be provided by enabled extensions.";
 "Enter a port between %u and %u." = "Enter a port between %u and %u.";
 "Environment" = "Environment";
+"Expand Composer" = "Expand Composer";
 "Expand Worktrees" = "Expand Worktrees";
 "Expanded Style" = "Expanded Style";
 "Every background terminal in this worktree is open in a tab." = "Every background terminal in this worktree is open in a tab.";
@@ -700,6 +702,7 @@
 "Reconnect to the background terminal session" = "Reconnect to the background terminal session";
 "Reset" = "Reset";
 "Reset All" = "Reset All";
+"Reset Composer Size" = "Reset Composer Size";
 "Reset Icon Color" = "Reset Icon Color";
 "Reset Shortcut" = "Reset Shortcut";
 "Reset Tab Color" = "Reset Tab Color";

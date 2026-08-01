@@ -164,6 +164,17 @@ already open. Stop Composer dictation to insert the transcript at the editor cur
 recording, then edit or send it normally. Composer dictation requires an installed on-device speech language plus
 microphone and speech recognition access.
 
+Long prompts can use a larger Composer. Drag its left, right, or bottom edge to resize it; because the Composer
+stays centered, a dragged edge grows the box symmetrically and follows the pointer. The expand button in the
+Composer header switches to a large preset instead, which is capped so it stays readable on big displays and
+shrinks to fit smaller windows; dragging an edge is what grows the Composer beyond that preset, and pressing the
+button again restores the size you dragged. Both the size and
+the expanded state are remembered across Composer sessions and app restarts, are stored independently of the UI
+Scale preset, and are always clamped to the current window, so a smaller window shrinks the Composer without
+losing your size. **Reset Composer Size** in the Composer's More menu returns it to the default size. The text
+editor takes whatever room the box has left, so attachments and the dictation status line reduce it while they
+are visible. `Cmd+=` and `Cmd+-` still change the Composer font size rather than the box.
+
 Each Composer submission is serialized with later keyboard input for its target terminal. Text, image paths, and
 the optional Return are submitted as one transaction, including when a Composer message is broadcast to several
 panes. Broadcast targets are processed one at a time, and each unique image attachment is normalized once into
