@@ -183,6 +183,15 @@ enum SettingsCatalog {
             defaultValue: HomeProjectPreferences.defaultVisible
         ),
         SettingsCatalogItem(
+            key: TipsPreferences.visibleKey,
+            title: "Show Tips",
+            description: "Shows Muxy tips at the bottom of the built-in sidebar.",
+            category: .appearance,
+            section: "Sidebar",
+            defaultValue: TipsPreferences.defaultVisible,
+            aliases: ["hints", "help", "sidebar card", "lightbulb"]
+        ),
+        SettingsCatalogItem(
             key: SidebarSelection.storageKey,
             title: "Active Sidebar",
             description: "Chooses the built-in sidebar or one provided by an extension.",

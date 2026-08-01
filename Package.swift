@@ -94,6 +94,7 @@ let package = Package(
                 .copy("Resources/skills"),
                 .copy("Resources/starter-kits"),
                 .copy("Resources/terminfo"),
+                .copy("Resources/tips.json"),
             ],
             linkerSettings: [
                 .unsafeFlags([

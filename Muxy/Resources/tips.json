@@ -1,0 +1,14 @@
+[
+  {
+    "description": "Run terminals as background sessions to preserve them after Muxy closes. Enable this in Settings → Terminal → Background Sessions."
+  },
+  {
+    "description": "Right-click inside a terminal to send its tab to the background."
+  },
+  {
+    "description": "Write an extension to replace the Muxy sidebar entirely. [Read the sidebar extension docs](https://muxy.app/docs/extensions/sidebars)."
+  },
+  {
+    "description": "Develop extensions for Muxy to add the features you want. [Read the extension docs](https://muxy.app/docs/extensions/overview)."
+  }
+]

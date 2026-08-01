@@ -22,6 +22,7 @@ struct InterfaceSettingsView: View {
     @AppStorage(SidebarCollapsedStyle.storageKey) private var sidebarCollapsedStyle = SidebarCollapsedStyle.defaultValue.rawValue
     @AppStorage(SidebarExpandedStyle.storageKey) private var sidebarExpandedStyle = SidebarExpandedStyle.defaultValue.rawValue
     @AppStorage(HomeProjectPreferences.visibleKey) private var showHomeProject = HomeProjectPreferences.defaultVisible
+    @AppStorage(TipsPreferences.visibleKey) private var showTips = TipsPreferences.defaultVisible
     @AppStorage(SidebarSelection.storageKey) private var activeSidebar = SidebarSelection.builtinValue
     @AppStorage(LocalizationSelection.storageKey)
     private var selectedLocalization = LocalizationSelection.builtinValue
@@ -193,6 +194,8 @@ struct InterfaceSettingsView: View {
             SettingsToggleRow(label: L10n.resource("Vibrancy"), isOn: sidebarVibrancyEnabled)
 
             SettingsToggleRow(label: L10n.resource("Show Home"), isOn: $showHomeProject)
+
+            SettingsToggleRow(label: L10n.resource("Show Tips"), isOn: $showTips)
 
             SettingsToggleRow(
                 label: L10n.resource("Auto-expand worktrees on project switch"),

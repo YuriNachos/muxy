@@ -201,6 +201,17 @@ struct SettingsCatalogTests {
     }
 
     @Test
+    func tipsSettingIsRegisteredAndSearchable() {
+        let item = SettingsCatalog.items.first { $0.key == TipsPreferences.visibleKey }
+
+        #expect(item?.category == .appearance)
+        #expect(item?.section == "Sidebar")
+        #expect(item?.defaultValue as? Bool == TipsPreferences.defaultVisible)
+        #expect(SettingsCatalog.matchingItems(query: "lightbulb").contains { $0.key == TipsPreferences.visibleKey })
+        #expect(SettingsCatalog.jsonEditableItems.contains { $0.key == TipsPreferences.visibleKey })
+    }
+
+    @Test
     func worktreePathTemplateIsRegisteredAndSearchable() {
         #expect(SettingsCatalog.jsonEditableItems.contains {
             $0.key == GeneralSettingsKeys.defaultWorktreePathTemplate

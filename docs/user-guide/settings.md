@@ -46,6 +46,16 @@ In **Appearance → Sidebar**, select **Tab Focused** or **Agents Focused** to s
 It is off by default. Turn it on to nest all worktrees under their project; turn it off to keep worktrees as top-level rows. Tab
 Focused shows top-level worktrees only when they have open tabs, while Agents Focused shows every secondary worktree.
 
+## Sidebar tips
+
+Muxy shows one tip at the bottom of the built-in sidebar. The starting tip is selected when Muxy launches and stays
+stable until you use the previous or next button. In an icon-only sidebar, select the lightbulb button to open the same
+tip in a popover.
+
+Select the close button on a tip, then confirm **Hide Tips** to hide tips. Turn on
+**Settings → Interface → Sidebar → Show Tips** to show them again. The preference is stored as `muxy.tips.visible` in
+`settings.json`. Extension-provided sidebars control their own content and do not show the built-in tip card.
+
 ## Background sessions
 
 Open **Settings → Terminal → Background sessions** to keep terminals running after Muxy quits:

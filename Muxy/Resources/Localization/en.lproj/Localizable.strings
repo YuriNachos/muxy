@@ -27,6 +27,7 @@
 "%lld%%" = "%lld%%";
 "%lld/%lld" = "%lld/%lld";
 "%lld/%lld passing" = "%lld/%lld passing";
+"%lld of %lld" = "%lld of %lld";
 "%u" = "%u";
 "+%lld" = "+%lld";
 "/path/to/worktrees" = "/path/to/worktrees";
@@ -388,6 +389,8 @@
 "Hero" = "Hero";
 "Hidden" = "Hidden";
 "Hide" = "Hide";
+"Hide Tips" = "Hide Tips";
+"Hide Tips?" = "Hide Tips?";
 "Hide Home" = "Hide Home";
 "Hide from status bar" = "Hide from status bar";
 "Hide resource usage. Re-enable it in Settings → Interface." = "Hide resource usage. Re-enable it in Settings → Interface.";
@@ -516,6 +519,7 @@
 "Next Match" = "Next Match";
 "Next Project" = "Next Project";
 "Next Tab" = "Next Tab";
+"Next Tip" = "Next Tip";
 "No Custom Commands" = "No Custom Commands";
 "No Shortcut" = "No Shortcut";
 "No branches" = "No branches";
@@ -607,6 +611,7 @@
 "Previous Match" = "Previous Match";
 "Previous Project" = "Previous Project";
 "Previous Tab" = "Previous Tab";
+"Previous Tip" = "Previous Tip";
 "Primary worktree" = "Primary worktree";
 "Profile name" = "Profile name";
 "Profiles" = "Profiles";
@@ -782,6 +787,8 @@
 "Shortcuts" = "Shortcuts";
 "Show" = "Show";
 "Show Home" = "Show Home";
+"Show Muxy Tip" = "Show Muxy Tip";
+"Show Tips" = "Show Tips";
 "Show Resource Usage in Status Bar" = "Show Resource Usage in Status Bar";
 "Show Status Bar" = "Show Status Bar";
 "Show unread notification indicator on worktrees" = "Show unread notification indicator on worktrees";
@@ -1007,6 +1014,7 @@
 "Wrench" = "Wrench";
 "Wrench Fill" = "Wrench Fill";
 "Yellow" = "Yellow";
+"You can show tips again in Settings → Interface → Sidebar by turning on Show Tips." = "You can show tips again in Settings → Interface → Sidebar by turning on Show Tips.";
 "(none)" = "(none)";
 "Adds CLAUDE.md and AGENTS.md and bundles the muxy-extension skill" = "Adds CLAUDE.md and AGENTS.md and bundles the muxy-extension skill";
 "Adds the directory to the Muxy sidebar as a project" = "Adds the directory to the Muxy sidebar as a project";
@@ -1112,6 +1120,7 @@
 "Theme" = "Theme";
 "Theme Picker" = "Theme Picker";
 "Theme Picker (%@)" = "Theme Picker (%@)";
+"Muxy Tip" = "Muxy Tip";
 "Transparency shows the desktop through terminal panes, the top bar, and the status bar. Vibrancy controls the native macOS material intensity and is required for the effect." = "Transparency shows the desktop through terminal panes, the top bar, and the status bar. Vibrancy controls the native macOS material intensity and is required for the effect.";
 "These commands will run in the new worktree's terminal. Only enable this if you trust this repository." = "These commands will run in the new worktree's terminal. Only enable this if you trust this repository.";
 "This PR has conflicts and cannot be merged." = "This PR has conflicts and cannot be merged.";
@@ -1392,6 +1401,7 @@
 "Shows or hides the status bar." = "Shows or hides the status bar.";
 "Shows the QR code used to pair a mobile device." = "Shows the QR code used to pair a mobile device.";
 "Shows the permanent Home project at the top of the sidebar." = "Shows the permanent Home project at the top of the sidebar.";
+"Shows Muxy tips at the bottom of the built-in sidebar." = "Shows Muxy tips at the bottom of the built-in sidebar.";
 "Shows toast notifications." = "Shows toast notifications.";
 "Sidebar Vibrancy" = "Sidebar Vibrancy";
 "Sorts the worktree switcher with the active worktree first, then by most-recently-used." = "Sorts the worktree switcher with the active worktree first, then by most-recently-used.";
