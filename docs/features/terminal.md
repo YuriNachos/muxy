@@ -161,7 +161,8 @@ Define reusable shell command shortcuts in **Settings → Commands**:
 `Cmd+I` opens the focused composer for multiline prompts, files, images, and broadcast sends. `Cmd+Shift+I`
 opens the legacy voice recorder normally, or starts on-device dictation inside the focused composer when it is
 already open. Stop Composer dictation to insert the transcript at the editor cursor, or press Return while
-recording, then edit or send it normally.
+recording, then edit or send it normally. Composer dictation requires an installed on-device speech language plus
+microphone and speech recognition access.
 
 Each Composer submission is serialized with later keyboard input for its target terminal. Text, image paths, and
 the optional Return are submitted as one transaction, including when a Composer message is broadcast to several

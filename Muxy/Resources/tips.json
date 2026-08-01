@@ -36,10 +36,10 @@
     "description": "By default, ⌘I opens the Composer for multiline text, files, and images that you can send to the focused terminal."
   },
   {
-    "description": "Use Send Without Enter in the Composer's More menu to send text to the focused terminal without sending a Return keystroke."
+    "description": "Use Send Without Enter in the Composer's More menu to send text to the selected target—either the active pane or all split panes—without sending a Return keystroke."
   },
   {
-    "description": "By default, with the Composer open, ⌘⇧I starts on-device dictation. Stop dictation or press Return to insert the transcript at the cursor."
+    "description": "With an on-device dictation language installed and microphone and speech recognition access allowed, ⌘⇧I starts dictation by default while the Composer is open. Stop dictation or press Return to insert the transcript at the cursor."
   },
   {
     "description": "By default, in a browser tab, press ⌘⌥I or choose Inspect Element from the right-click menu to open Web Inspector."
