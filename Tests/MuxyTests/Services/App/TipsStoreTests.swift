@@ -45,6 +45,37 @@ struct TipsStoreTests {
         #expect(try TipCatalog.decode(data).count == objects.count)
     }
 
+    @Test("bundled descriptions exist in the English localization template")
+    func bundledDescriptionsAreLocalizable() throws {
+        let root = RepositoryRoot.find()
+        let tips = try TipCatalog.decode(Data(contentsOf: root.appendingPathComponent("Muxy/Resources/tips.json")))
+        let localizationURL = root.appendingPathComponent(
+            "Muxy/Resources/Localization/en.lproj/Localizable.strings"
+        )
+        let localizationData = try Data(contentsOf: localizationURL)
+        let localization = try #require(
+            PropertyListSerialization.propertyList(from: localizationData, format: nil) as? [String: String]
+        )
+        let missingDescriptions = tips.map(\.description).filter { localization[$0] == nil }
+
+        #expect(missingDescriptions.isEmpty, "Missing tip localization keys: \(missingDescriptions)")
+    }
+
+    @Test("bundled documentation links map to local documentation")
+    func bundledDocumentationLinksResolveLocally() throws {
+        let root = RepositoryRoot.find()
+        let tips = try TipCatalog.decode(Data(contentsOf: root.appendingPathComponent("Muxy/Resources/tips.json")))
+        let linkedDocumentationPaths = tips.flatMap { documentationPaths(in: $0.description) }
+        let missingPaths = linkedDocumentationPaths.filter { path in
+            !FileManager.default.fileExists(
+                atPath: root.appendingPathComponent("docs/\(path).md").path
+            )
+        }
+
+        #expect(!linkedDocumentationPaths.isEmpty)
+        #expect(missingPaths.isEmpty, "Missing local documentation for tip links: \(missingPaths)")
+    }
+
     @Test("module resource bundle contains the tips catalog")
     func moduleBundleContainsCatalog() {
         #expect(!TipCatalog.load(bundle: .module).isEmpty)
@@ -97,5 +128,22 @@ struct TipsStoreTests {
             try MuxyTip(description: "Second"),
             try MuxyTip(description: "Third"),
         ]
+    }
+
+    private func documentationPaths(in description: String) -> [String] {
+        let prefix = "https://muxy.app/docs/"
+        var paths: [String] = []
+        var searchStart = description.startIndex
+        while let range = description.range(of: prefix, range: searchStart ..< description.endIndex) {
+            let suffix = description[range.upperBound...]
+            let target = suffix.prefix { $0 != ")" && !$0.isWhitespace }
+            if let url = URL(string: prefix + String(target)),
+               url.path.hasPrefix("/docs/")
+            {
+                paths.append(String(url.path.dropFirst("/docs/".count)))
+            }
+            searchStart = description.index(range.upperBound, offsetBy: target.count)
+        }
+        return paths
     }
 }
