@@ -256,7 +256,7 @@ struct PaneTabStrip: View {
         let dy = globalLocation.y - dragStartGlobalLocation.y
 
         if dragState.draggedID == nil {
-            guard DragActivation.exceedsDistance(from: dragStartGlobalLocation, to: globalLocation) else { return }
+            guard DragActivation.reachesDistance(from: dragStartGlobalLocation, to: globalLocation) else { return }
             dragState.draggedID = tab.id
             dragState.lastReorderTargetID = nil
         }

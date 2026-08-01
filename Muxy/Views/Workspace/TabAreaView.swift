@@ -16,7 +16,7 @@ struct TabAreaView: View {
     @State private var isExternalDragHovering = false
     @State private var externalDragHideTask: Task<Void, any Error>?
     @State private var isCommandDragging = false
-    @State private var isCommandDragRejected = false
+    @State private var commandDragActivation = CommandDragActivation()
 
     private static let externalDragHideDebounce: Duration = .milliseconds(80)
 
@@ -58,7 +58,7 @@ struct TabAreaView: View {
             }
         }
         .simultaneousGesture(
-            DragGesture(minimumDistance: DragActivation.distance, coordinateSpace: .named(DragCoordinateSpace.mainWindow))
+            DragGesture(minimumDistance: 0, coordinateSpace: .named(DragCoordinateSpace.mainWindow))
                 .onChanged { value in
                     handleCommandDragChanged(value)
                 }
@@ -77,7 +77,7 @@ struct TabAreaView: View {
         }
         .onDisappear {
             externalDragHideTask?.cancel()
-            isCommandDragRejected = false
+            commandDragActivation = CommandDragActivation()
             if isCommandDragging {
                 dragCoordinator.cancelDrag()
                 isCommandDragging = false
@@ -105,20 +105,14 @@ struct TabAreaView: View {
         }
     }
 
-    static func startsCommandDrag(commandHeld: Bool, isRejected: Bool) -> Bool {
-        commandHeld && !isRejected
-    }
-
     private func handleCommandDragChanged(_ value: DragGesture.Value) {
         if !isCommandDragging {
-            guard Self.startsCommandDrag(
+            guard commandDragActivation.shouldActivate(
                 commandHeld: NSEvent.modifierFlags.contains(.command),
-                isRejected: isCommandDragRejected
+                from: value.startLocation,
+                to: value.location
             )
-            else {
-                isCommandDragRejected = true
-                return
-            }
+            else { return }
             isCommandDragging = true
             onFocus()
             dragCoordinator.beginDrag(tabID: tab.id, sourceAreaID: area.id, projectID: projectID)
@@ -127,7 +121,7 @@ struct TabAreaView: View {
     }
 
     private func handleCommandDragEnded() {
-        isCommandDragRejected = false
+        commandDragActivation = CommandDragActivation()
         guard isCommandDragging else { return }
         isCommandDragging = false
         guard let result = dragCoordinator.endDrag() else { return }

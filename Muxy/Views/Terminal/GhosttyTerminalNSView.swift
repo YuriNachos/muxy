@@ -1101,7 +1101,11 @@ final class GhosttyTerminalNSView: NSView,
     }
 
     static func reachesSurfaceWhileOverlayActive(routing: LeftMousePressRouting) -> Bool {
-        routing == .forwardedToSurface
+        reachesSurfaceWhileOverlayActive(forwardedPress: routing == .forwardedToSurface)
+    }
+
+    static func reachesSurfaceWhileOverlayActive(forwardedPress: Bool) -> Bool {
+        forwardedPress
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -1172,7 +1176,7 @@ final class GhosttyTerminalNSView: NSView,
 
     private func updateLeftDragState(with event: NSEvent) {
         guard !didDragAfterLeftMouseDown, let origin = leftMouseDownWindowPoint else { return }
-        didDragAfterLeftMouseDown = DragActivation.exceedsDistance(from: origin, to: event.locationInWindow)
+        didDragAfterLeftMouseDown = DragActivation.reachesDistance(from: origin, to: event.locationInWindow)
     }
 
     override func rightMouseDragged(with event: NSEvent) {
@@ -1532,7 +1536,7 @@ final class GhosttyTerminalNSView: NSView,
     override func rightMouseUp(with event: NSEvent) {
         let forwardedPress = forwardedRightMousePress
         forwardedRightMousePress = false
-        if overlayActive {
+        if overlayActive, !Self.reachesSurfaceWhileOverlayActive(forwardedPress: forwardedPress) {
             return
         }
         guard let surface else { return }
