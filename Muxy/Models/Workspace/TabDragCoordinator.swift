@@ -5,6 +5,16 @@ enum DragCoordinateSpace {
     static let mainWindow = "main-window-drag-space"
 }
 
+enum DragActivation {
+    static let distance: CGFloat = 4
+
+    static func exceedsDistance(from origin: CGPoint, to point: CGPoint) -> Bool {
+        let dx = point.x - origin.x
+        let dy = point.y - origin.y
+        return (dx * dx) + (dy * dy) > distance * distance
+    }
+}
+
 enum TabMoveRequest {
     case toArea(tabID: UUID, sourceAreaID: UUID, destinationAreaID: UUID)
     case toNewSplit(tabID: UUID, sourceAreaID: UUID, targetAreaID: UUID, split: SplitPlacement)

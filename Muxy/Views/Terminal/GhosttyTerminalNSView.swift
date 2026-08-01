@@ -49,6 +49,10 @@ final class GhosttyTerminalNSView: NSView,
     private var isShowingHandCursor = false
     private var fileHoverUnderlineLayer: CAShapeLayer?
     private var lastMouseTopDownPoint: CGPoint?
+    private var leftMousePressRouting: LeftMousePressRouting = .ignored
+    private var leftMouseDownWindowPoint: NSPoint?
+    private var didDragAfterLeftMouseDown = false
+    private var forwardedRightMousePress = false
     var hasOSC8LinkUnderCursor: Bool = false
     var isFocused: Bool = false
     var overlayActive: Bool = false
@@ -1073,14 +1077,45 @@ final class GhosttyTerminalNSView: NSView,
         }
     }
 
+    enum LeftMousePressRouting {
+        case ignored
+        case forwardedToSurface
+        case commandPending
+        case commandHandled
+    }
+
+    static func forwardsLeftMousePress(commandHeld: Bool) -> Bool {
+        !commandHeld
+    }
+
+    static func forwardsLeftMouseRelease(routing: LeftMousePressRouting, didDrag: Bool) -> Bool {
+        switch routing {
+        case .forwardedToSurface:
+            true
+        case .commandPending:
+            !didDrag
+        case .ignored,
+             .commandHandled:
+            false
+        }
+    }
+
+    static func reachesSurfaceWhileOverlayActive(routing: LeftMousePressRouting) -> Bool {
+        routing == .forwardedToSurface
+    }
+
     override func mouseDown(with event: NSEvent) {
+        leftMousePressRouting = .ignored
+        leftMouseDownWindowPoint = event.locationInWindow
+        didDragAfterLeftMouseDown = false
         if overlayActive {
             return
         }
         guard let surface else { return }
         let pt = mousePoint(from: event)
         ghostty_surface_mouse_pos(surface, pt.x, pt.y, modsFromEvent(event))
-        let commandWord = event.modifierFlags.contains(.command) && !hasOSC8LinkUnderCursor
+        let commandHeld = event.modifierFlags.contains(.command)
+        let commandWord = commandHeld && !hasOSC8LinkUnderCursor
             ? readQuicklookWordUnderMouse()
             : nil
         let commandFileToken = commandWord.flatMap { resolvedCmdFileToken(for: $0)?.text }
@@ -1089,21 +1124,34 @@ final class GhosttyTerminalNSView: NSView,
             openCommandFile: { onCmdClickFile?($0) },
             focusTerminal: claimFocusForMouseDown
         ) {
+            leftMousePressRouting = .commandHandled
             return
         }
         if commandWord != nil {
+            leftMousePressRouting = .commandPending
             return
         }
+        guard Self.forwardsLeftMousePress(commandHeld: commandHeld) else {
+            leftMousePressRouting = .commandPending
+            return
+        }
+        leftMousePressRouting = .forwardedToSurface
         _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT, modsFromEvent(event))
     }
 
     override func mouseUp(with event: NSEvent) {
-        if overlayActive {
+        let routing = leftMousePressRouting
+        let didDrag = didDragAfterLeftMouseDown
+        leftMousePressRouting = .ignored
+        leftMouseDownWindowPoint = nil
+        didDragAfterLeftMouseDown = false
+        if overlayActive, !Self.reachesSurfaceWhileOverlayActive(routing: routing) {
             return
         }
         guard let surface else { return }
         let pt = mousePoint(from: event)
         ghostty_surface_mouse_pos(surface, pt.x, pt.y, modsFromEvent(event))
+        guard Self.forwardsLeftMouseRelease(routing: routing, didDrag: didDrag) else { return }
         _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT, modsFromEvent(event))
         autoCopySelectionIfEnabled()
     }
@@ -1118,7 +1166,13 @@ final class GhosttyTerminalNSView: NSView,
     }
 
     override func mouseDragged(with event: NSEvent) {
+        updateLeftDragState(with: event)
         mouseMoved(with: event)
+    }
+
+    private func updateLeftDragState(with event: NSEvent) {
+        guard !didDragAfterLeftMouseDown, let origin = leftMouseDownWindowPoint else { return }
+        didDragAfterLeftMouseDown = DragActivation.exceedsDistance(from: origin, to: event.locationInWindow)
     }
 
     override func rightMouseDragged(with event: NSEvent) {
@@ -1447,26 +1501,47 @@ final class GhosttyTerminalNSView: NSView,
         return bounds.height / CGFloat(cells.rows)
     }
 
+    static func forwardsRightMouseButton(mouseCaptured: Bool, shiftHeld: Bool) -> Bool {
+        mouseCaptured && !shiftHeld
+    }
+
     override func rightMouseDown(with event: NSEvent) {
+        forwardedRightMousePress = false
         if overlayActive {
             return
         }
         guard let surface else { return }
         let pt = mousePoint(from: event)
         ghostty_surface_mouse_pos(surface, pt.x, pt.y, modsFromEvent(event))
-        let consumed = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, modsFromEvent(event))
-        if !consumed {
+        guard Self.forwardsRightMouseButton(
+            mouseCaptured: ghostty_surface_mouse_captured(surface),
+            shiftHeld: event.modifierFlags.contains(.shift)
+        )
+        else {
             presentContextMenu(with: event)
+            return
         }
+        forwardedRightMousePress = true
+        let consumed = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT, modsFromEvent(event))
+        guard !consumed else { return }
+        forwardedRightMousePress = false
+        _ = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_RIGHT, modsFromEvent(event))
+        presentContextMenu(with: event)
     }
 
     override func rightMouseUp(with event: NSEvent) {
+        let forwardedPress = forwardedRightMousePress
+        forwardedRightMousePress = false
         if overlayActive {
             return
         }
         guard let surface else { return }
         let pt = mousePoint(from: event)
         ghostty_surface_mouse_pos(surface, pt.x, pt.y, modsFromEvent(event))
+        guard forwardedPress else {
+            super.rightMouseUp(with: event)
+            return
+        }
         let consumed = ghostty_surface_mouse_button(surface, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_RIGHT, modsFromEvent(event))
         if !consumed {
             super.rightMouseUp(with: event)

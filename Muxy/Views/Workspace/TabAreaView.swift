@@ -16,6 +16,7 @@ struct TabAreaView: View {
     @State private var isExternalDragHovering = false
     @State private var externalDragHideTask: Task<Void, any Error>?
     @State private var isCommandDragging = false
+    @State private var isCommandDragRejected = false
 
     private static let externalDragHideDebounce: Duration = .milliseconds(80)
 
@@ -57,7 +58,7 @@ struct TabAreaView: View {
             }
         }
         .simultaneousGesture(
-            DragGesture(minimumDistance: 4, coordinateSpace: .named(DragCoordinateSpace.mainWindow))
+            DragGesture(minimumDistance: DragActivation.distance, coordinateSpace: .named(DragCoordinateSpace.mainWindow))
                 .onChanged { value in
                     handleCommandDragChanged(value)
                 }
@@ -76,6 +77,7 @@ struct TabAreaView: View {
         }
         .onDisappear {
             externalDragHideTask?.cancel()
+            isCommandDragRejected = false
             if isCommandDragging {
                 dragCoordinator.cancelDrag()
                 isCommandDragging = false
@@ -103,9 +105,20 @@ struct TabAreaView: View {
         }
     }
 
+    static func startsCommandDrag(commandHeld: Bool, isRejected: Bool) -> Bool {
+        commandHeld && !isRejected
+    }
+
     private func handleCommandDragChanged(_ value: DragGesture.Value) {
         if !isCommandDragging {
-            guard NSEvent.modifierFlags.contains(.command) else { return }
+            guard Self.startsCommandDrag(
+                commandHeld: NSEvent.modifierFlags.contains(.command),
+                isRejected: isCommandDragRejected
+            )
+            else {
+                isCommandDragRejected = true
+                return
+            }
             isCommandDragging = true
             onFocus()
             dragCoordinator.beginDrag(tabID: tab.id, sourceAreaID: area.id, projectID: projectID)
@@ -114,6 +127,7 @@ struct TabAreaView: View {
     }
 
     private func handleCommandDragEnded() {
+        isCommandDragRejected = false
         guard isCommandDragging else { return }
         isCommandDragging = false
         guard let result = dragCoordinator.endDrag() else { return }

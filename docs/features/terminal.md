@@ -121,6 +121,23 @@ upload the image and inline its remote path, because a Mac file path does not re
 upload fails, Muxy withholds Return and clears every line it has already submitted, so a partial prompt is never
 left in the TUI.
 
+## Mouse
+
+Plain left-click and drag selects terminal text. `⌘` and right-click are reserved for Muxy, and neither starts
+nor changes a text selection:
+
+| Gesture | Result |
+| --- | --- |
+| `⌘` + left-click | Opens the file path or link under the pointer |
+| `⌘` + left-drag | Moves the pane to another area or split |
+| Right-click | Opens the [right-click menu](#right-click-menu) |
+
+A `⌘` + left-drag is decided when the gesture starts, so pressing or releasing `⌘` mid-drag never switches
+between moving the pane and selecting text.
+
+Programs that enable mouse reporting keep receiving right-click. Hold `Shift` while right-clicking such a program
+to get Muxy's menu instead.
+
 ## Working directory
 
 Muxy tracks the cwd via Ghostty's shell integration (OSC 7). The directory is persisted in workspace snapshots so newly recreated tabs land in the same folder when applicable.
@@ -161,6 +178,8 @@ the control that was focused before recording and can optionally press Return af
 ## Right-click menu
 
 Inside a terminal pane: **Paste**, **Send to Background**, **Split Right**, **Split Left**, **Split Down**, **Split Up**, and **Terminal Settings…**. Terminal Settings opens Muxy's settings directly on the Terminal section. Send to Background closes an eligible local background-backed tab while leaving its processes running.
+
+Opening the menu never selects terminal text. While a program has mouse reporting enabled the right button belongs to that program, so hold `Shift` to open the menu instead.
 
 Splitting creates a child pane inside the current top-level tab. Each pane keeps its own terminal, browser, source-control, or extension surface, while a one-pixel divider replaces the old per-pane tab strip. Child panes do not appear as separate entries in the window tab strip or the Tab Focused sidebar. An agent running in a child pane does appear as its own entry in the Agents Focused sidebar, and selecting it activates both the child pane and its parent top-level tab.
 
