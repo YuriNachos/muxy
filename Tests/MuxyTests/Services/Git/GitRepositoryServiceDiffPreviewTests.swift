@@ -98,14 +98,14 @@ struct GitRepositoryServiceDiffPreviewTests {
 
     @Test("pull request diff refs fetch the base branch alongside the head")
     func pullRequestDiffRefsFetchBaseBranch() async throws {
-        let fixture = try await PullRequestDiffFixture()
+        let fixture = try await PullRequestDiffFixture(baseBranch: "release+beta")
         defer { fixture.cleanUp() }
 
         let refs = try await GitRepositoryService().fetchPullRequestDiffRefs(
             repoPath: fixture.clone.path,
             number: 10,
             remote: "origin",
-            baseBranch: "main"
+            baseBranch: "release+beta"
         )
 
         #expect(refs.head == "refs/muxy/pull/10/head")
@@ -156,6 +156,18 @@ struct GitRepositoryServiceDiffPreviewTests {
         )
         #expect(diff.stdout.contains("feature.txt"))
     }
+
+    @Test("github remote name resolves matching owner repository")
+    func githubRemoteNameResolvesMatchingOwnerRepository() {
+        let remotes = """
+        upstream\tgit@github.com:owner/repo.git (fetch)
+        upstream\tgit@github.com:owner/repo.git (push)
+        origin\tgit@github.com:fork/repo.git (fetch)
+        origin\tgit@github.com:fork/repo.git (push)
+        """
+
+        #expect(GitRepositoryService.githubRemoteName(fromRemoteList: remotes, nameWithOwner: "owner/repo") == "upstream")
+    }
 }
 
 private struct PullRequestDiffFixture {
@@ -163,12 +175,12 @@ private struct PullRequestDiffFixture {
     let clone: URL
     let baseCommit: String
 
-    init() async throws {
+    init(baseBranch: String = "main") async throws {
         origin = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         clone = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: origin, withIntermediateDirectories: true)
 
-        try await Self.git(origin, ["init", "--initial-branch=main"])
+        try await Self.git(origin, ["init", "--initial-branch=\(baseBranch)"])
         try await Self.git(origin, ["config", "user.email", "test@example.com"])
         try await Self.git(origin, ["config", "user.name", "Test"])
         try "base\n".write(to: origin.appendingPathComponent("base.txt"), atomically: true, encoding: .utf8)
@@ -184,7 +196,7 @@ private struct PullRequestDiffFixture {
         try await Self.git(origin, ["commit", "-m", "feature"])
         try await Self.git(origin, ["update-ref", "refs/pull/10/head", "refs/heads/feature"])
 
-        try await Self.git(origin, ["checkout", "main"])
+        try await Self.git(origin, ["checkout", baseBranch])
         try "advanced\n".write(to: origin.appendingPathComponent("advanced.txt"), atomically: true, encoding: .utf8)
         try await Self.git(origin, ["add", "."])
         try await Self.git(origin, ["commit", "-m", "advance main"])
@@ -204,17 +216,5 @@ private struct PullRequestDiffFixture {
 
     private static func git(_ directory: URL, _ arguments: [String]) async throws {
         _ = try await GitProcessRunner.runGit(repoPath: directory.path, arguments: arguments)
-    }
-
-    @Test("github remote name resolves matching owner repository")
-    func githubRemoteNameResolvesMatchingOwnerRepository() {
-        let remotes = """
-        upstream\tgit@github.com:owner/repo.git (fetch)
-        upstream\tgit@github.com:owner/repo.git (push)
-        origin\tgit@github.com:fork/repo.git (fetch)
-        origin\tgit@github.com:fork/repo.git (push)
-        """
-
-        #expect(GitRepositoryService.githubRemoteName(fromRemoteList: remotes, nameWithOwner: "owner/repo") == "upstream")
     }
 }

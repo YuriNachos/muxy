@@ -1342,16 +1342,15 @@ struct GitRepositoryService {
         try validateRef(localRef)
         let headSpec = "+refs/pull/\(number)/head:\(localRef)"
 
-        if let baseBranch, !baseBranch.isEmpty {
+        if let baseBranch, await isValidBranchRef(repoPath: repoPath, branch: baseBranch) {
             let localBaseRef = Self.localPullRequestDiffBaseRef(number: number)
-            if (try? validateRef(baseBranch)) != nil, (try? validateRef(localBaseRef)) != nil {
-                let result = try await runGit(
-                    repoPath: repoPath,
-                    arguments: ["fetch", remote, headSpec, "+refs/heads/\(baseBranch):\(localBaseRef)"]
-                )
-                if result.status == 0 {
-                    return (localRef, localBaseRef)
-                }
+            try validateRef(localBaseRef)
+            let result = try await runGit(
+                repoPath: repoPath,
+                arguments: ["fetch", remote, headSpec, "+refs/heads/\(baseBranch):\(localBaseRef)"]
+            )
+            if result.status == 0 {
+                return (localRef, localBaseRef)
             }
         }
 
@@ -1973,6 +1972,14 @@ struct GitRepositoryService {
         else {
             throw GitError.commandFailed("Invalid Git ref.")
         }
+    }
+
+    private func isValidBranchRef(repoPath: String, branch: String) async -> Bool {
+        let result = try? await runGit(
+            repoPath: repoPath,
+            arguments: ["check-ref-format", "refs/heads/\(branch)"]
+        )
+        return result?.status == 0
     }
 
     private func validatePath(repoPath: String, relativePath: String) throws {
