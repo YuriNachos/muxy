@@ -112,7 +112,7 @@ struct MainWindow: View {
     private var richInputPanelPosition = RichInputPreferences.defaultPosition
     @AppStorage(RichInputPreferences.broadcastKey) private var richInputBroadcast = RichInputPreferences.defaultBroadcast
     @State private var richInputStates: [WorktreeKey: RichInputState] = [:]
-    @State private var composerVisible = false
+    @State private var richInputPresentation = RichInputPresentationController()
     @State private var composerVoice = ComposerVoiceState()
     @State private var visitedWorktreeKeys: Set<WorktreeKey> = []
     @AppStorage(WorktreeListPreferences.orderByMRUKey)
@@ -189,6 +189,13 @@ struct MainWindow: View {
             .onChange(of: richInputPresentationMode) { _, mode in
                 synchronizeRichInputPresentationMode(mode)
             }
+            .onChange(of: panelHost.placements) {
+                richInputPresentation.reconcilePanelHostChange(voice: composerVoice)
+            }
+            .onChange(of: activeRichInputTarget) { _, target in
+                guard richInputPresentation.reconcileTargetChange(target, voice: composerVoice) else { return }
+                restoreActiveTerminalFocus()
+            }
     }
 
     private var windowColumns: some View {
@@ -209,7 +216,7 @@ struct MainWindow: View {
             overlayActive: overlayActive,
             toastAlignment: toastAlignment,
             isVoicePanelVisible: voiceRecording.isPanelVisible,
-            isComposerVisible: composerVisible,
+            isComposerVisible: richInputPresentation.isFloatingVisible,
             hasToast: ToastState.shared.message != nil
         )
     }
@@ -382,9 +389,6 @@ struct MainWindow: View {
     }
 
     private func refreshWorkspaceWatcherAndVisited() {
-        if composerVisible {
-            closeComposer()
-        }
         updateWorkspaceFileWatcher()
         recordVisitedActiveWorktree()
     }
@@ -778,7 +782,7 @@ struct MainWindow: View {
 
     private var activeModalOverlays: Set<MainWindowModalOverlay> {
         var overlays: Set<MainWindowModalOverlay> = []
-        if composerVisible {
+        if richInputPresentation.isFloatingVisible {
             overlays.insert(.composer)
         }
         if showTerminalOmnibox {
@@ -820,7 +824,7 @@ struct MainWindow: View {
 
     @ViewBuilder
     private var composerOverlay: some View {
-        if composerVisible,
+        if richInputPresentation.isFloatingVisible,
            let state = activeRichInputState,
            let worktreeKey = activeWorktreeKey,
            let project = activeProject,
@@ -1133,9 +1137,6 @@ struct MainWindow: View {
     }
 
     private func activateWorkspaceForActiveProject() {
-        if composerVisible {
-            closeComposer()
-        }
         guard let projectID = appState.activeProjectID, projectID != Project.homeID else { return }
         let candidates = projectStore.projects + projectGroupStore.remoteProjects
         guard let project = candidates.first(where: { $0.id == projectID }) else { return }
@@ -1808,17 +1809,24 @@ struct MainWindow: View {
         activeTerminalPane?.id
     }
 
+    private var activeRichInputTarget: RichInputPresentationTarget? {
+        guard let worktreeKey = activeWorktreeKey,
+              let paneID = activeRichInputPaneID
+        else { return nil }
+        return RichInputPresentationTarget(worktreeKey: worktreeKey, paneID: paneID)
+    }
+
     private var activeTerminalPane: TerminalPaneState? {
         guard let project = activeProject else { return nil }
         return appState.activeTab(for: project.id)?.content.pane
     }
 
     private var richInputPanelVisible: Bool {
-        panelHost.isOpen(BuiltinPanel.richInput)
+        richInputPresentation.isPanelVisible
     }
 
     private var richInputVisible: Bool {
-        composerVisible || richInputPanelVisible
+        richInputPresentation.isVisible
     }
 
     private func toggleRichInput() {
@@ -1831,17 +1839,18 @@ struct MainWindow: View {
 
     @discardableResult
     private func presentRichInput(startsVoice: Bool) -> Bool {
-        guard let richInputState = activeRichInputState, activeRichInputPaneID != nil else { return false }
+        guard let richInputState = activeRichInputState,
+              let target = activeRichInputTarget
+        else { return false }
         guard MainWindowModalPolicy.canPresent(.composer, active: activeModalOverlays) else { return false }
         if voiceRecording.isPanelVisible {
             voiceRecording.cancel()
         }
-        switch richInputPresentationMode {
-        case .panel:
-            panelHost.open(BuiltinPanel.richInput, at: richInputPanelPosition, mode: .pinned)
-        case .floating:
-            composerVisible = true
-        }
+        richInputPresentation.present(
+            mode: richInputPresentationMode,
+            position: richInputPanelPosition,
+            target: target
+        )
         richInputState.focusVersion += 1
         guard startsVoice else { return true }
         DispatchQueue.main.async {
@@ -1852,15 +1861,13 @@ struct MainWindow: View {
     }
 
     private func closeComposer() {
-        guard composerVisible else { return }
+        guard richInputPresentation.isFloatingVisible else { return }
         closeRichInput()
     }
 
     private func closeRichInput() {
-        guard richInputVisible else { return }
+        guard richInputPresentation.close() else { return }
         composerVoice.cancel()
-        composerVisible = false
-        panelHost.close(BuiltinPanel.richInput)
         restoreActiveTerminalFocus()
     }
 
@@ -1880,28 +1887,13 @@ struct MainWindow: View {
     }
 
     private func synchronizeRichInputPresentationMode(_ mode: RichInputPresentationMode) {
-        guard richInputVisible else { return }
-        if mode == .panel, richInputPanelVisible, !composerVisible {
-            return
-        }
-        if mode == .floating, composerVisible, !richInputPanelVisible {
-            return
-        }
-        composerVisible = false
-        panelHost.close(BuiltinPanel.richInput)
-        switch mode {
-        case .panel:
-            panelHost.open(BuiltinPanel.richInput, at: richInputPanelPosition, mode: .pinned)
-        case .floating:
-            composerVisible = true
-        }
+        guard richInputPresentation.synchronize(mode: mode, position: richInputPanelPosition) else { return }
         activeRichInputState?.focusVersion += 1
     }
 
     private func toggleRichInputPanelPosition() {
         richInputPanelPosition = richInputPanelPosition.opposite
-        guard richInputPanelVisible else { return }
-        panelHost.move(BuiltinPanel.richInput, to: richInputPanelPosition)
+        richInputPresentation.movePanel(to: richInputPanelPosition)
     }
 
     private func submitRichInput(_ richInput: RichInputState, appendReturn: Bool, selectedText: String?) {

@@ -160,8 +160,8 @@ Define reusable shell command shortcuts in **Settings → Commands**:
 
 `Cmd+I` opens the composer for multiline prompts, files, images, and broadcast sends. The default **Panel**
 presentation docks it beside the workspace. Resize the panel from its workspace-facing edge or move it between
-the right and bottom positions from its header. Choose **Floating** under **Settings -> Terminal -> Composer ->
-Presentation**, use the panel header's floating button, or choose **Use Floating Composer** from its More menu to
+the right and bottom positions from its header. Choose **Floating** under **Settings -> Composer -> Presentation**,
+use the panel header's floating button, or choose **Use Floating Composer** from its More menu to
 open the centered modal instead. Choose **Use Composer Panel** from the floating Composer's More menu to switch
 back. The presentation choice, panel position, and both layouts' sizes persist across app restarts, and switching
 an open Composer preserves its draft and attachments.
