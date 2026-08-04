@@ -822,6 +822,18 @@ struct SettingsJSONStoreTests {
     }
 
     @Test
+    func saveAppliesComposerPresentationMode() throws {
+        let key = RichInputPreferences.presentationModeKey
+        let snapshot = SettingsJSONStoreSnapshot.capture(keys: [key])
+        defer { snapshot.restore() }
+        UserDefaults.standard.removeObject(forKey: key)
+
+        try SettingsJSONStore.saveUserSettingsText("{\"\(key)\":\"floating\"}")
+
+        #expect(UserDefaults.standard.string(forKey: key) == RichInputPresentationMode.floating.rawValue)
+    }
+
+    @Test
     func saveAppliesAutomaticUpdatesThroughUpdater() throws {
         let snapshot = SettingsJSONStoreSnapshot.capture(keys: [UpdateService.automaticallyUpdatesKey])
         defer { snapshot.restore() }

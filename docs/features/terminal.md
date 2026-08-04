@@ -158,22 +158,28 @@ Define reusable shell command shortcuts in **Settings → Commands**:
 
 ## Composer
 
-`Cmd+I` opens the focused composer for multiline prompts, files, images, and broadcast sends. `Cmd+Shift+I`
-opens the legacy voice recorder normally, or starts on-device dictation inside the focused composer when it is
-already open. Stop Composer dictation to insert the transcript at the editor cursor, or press Return while
-recording, then edit or send it normally. Composer dictation requires an installed on-device speech language plus
-microphone and speech recognition access.
+`Cmd+I` opens the composer for multiline prompts, files, images, and broadcast sends. The default **Panel**
+presentation docks it beside the workspace. Resize the panel from its workspace-facing edge or move it between
+the right and bottom positions from its header. Choose **Floating** under **Settings -> Terminal -> Composer ->
+Presentation**, use the panel header's floating button, or choose **Use Floating Composer** from its More menu to
+open the centered modal instead. Choose **Use Composer Panel** from the floating Composer's More menu to switch
+back. The presentation choice, panel position, and both layouts' sizes persist across app restarts, and switching
+an open Composer preserves its draft and attachments.
 
-Long prompts can use a larger Composer. Drag its left, right, or bottom edge to resize it; because the Composer
-stays centered, a dragged edge grows the box symmetrically and follows the pointer. The expand button in the
-Composer header switches to a large preset instead, which is capped so it stays readable on big displays and
-shrinks to fit smaller windows; dragging an edge is what grows the Composer beyond that preset, and pressing the
-button again restores the size you dragged. Both the size and
-the expanded state are remembered across Composer sessions and app restarts, are stored independently of the UI
-Scale preset, and are always clamped to the current window, so a smaller window shrinks the Composer without
-losing your size. **Reset Composer Size** in the Composer's More menu returns it to the default size. The text
-editor takes whatever room the box has left, so attachments and the dictation status line reduce it while they
-are visible. `Cmd+=` and `Cmd+-` still change the Composer font size rather than the box.
+`Cmd+Shift+I` opens the legacy voice recorder normally, or starts on-device dictation inside either Composer
+presentation when it is already open. Stop Composer dictation to insert the transcript at the editor cursor, or
+press Return while recording, then edit or send it normally. Composer dictation requires an installed on-device
+speech language plus microphone and speech recognition access.
+
+Long prompts in the floating presentation can use a larger Composer. Drag its left, right, or bottom edge to
+resize it; because the Composer stays centered, a dragged edge grows the box symmetrically and follows the
+pointer. The expand button in the Composer header switches to a large preset instead, which is capped so it stays
+readable on big displays and shrinks to fit smaller windows; dragging an edge is what grows the Composer beyond
+that preset, and pressing the button again restores the size you dragged. Both the size and the expanded state
+are stored independently of the UI Scale preset and always clamped to the current window, so a smaller window
+shrinks the Composer without losing your size. **Reset Composer Size** in the Composer's More menu returns it to
+the default size. The text editor takes whatever room the box has left, so attachments and the dictation status
+line reduce it while they are visible. `Cmd+=` and `Cmd+-` still change the Composer font size rather than the box.
 
 Each Composer submission is serialized with later keyboard input for its target terminal. Text, image paths, and
 the optional Return are submitted as one transaction, including when a Composer message is broadcast to several

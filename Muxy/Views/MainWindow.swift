@@ -104,6 +104,12 @@ struct MainWindow: View {
     @State private var workspaceFileWatcher = WorkspaceFileWatcher()
     @AppStorage("muxy.extensionPanelWidth") private var extensionPanelWidth: Double = PanelLayoutMetrics.extensionDefaultWidth
     @AppStorage("muxy.extensionPanelHeight") private var extensionPanelHeight: Double = PanelLayoutMetrics.extensionDefaultHeight
+    @AppStorage("muxy.richInputPanelWidth") private var richInputPanelWidth = PanelLayoutMetrics.richInputDefaultWidth
+    @AppStorage("muxy.richInputPanelHeight") private var richInputPanelHeight = PanelLayoutMetrics.richInputDefaultHeight
+    @AppStorage(RichInputPreferences.presentationModeKey)
+    private var richInputPresentationMode = RichInputPreferences.defaultPresentationMode
+    @AppStorage(RichInputPreferences.positionKey)
+    private var richInputPanelPosition = RichInputPreferences.defaultPosition
     @AppStorage(RichInputPreferences.broadcastKey) private var richInputBroadcast = RichInputPreferences.defaultBroadcast
     @State private var richInputStates: [WorktreeKey: RichInputState] = [:]
     @State private var composerVisible = false
@@ -180,6 +186,9 @@ struct MainWindow: View {
             .modifier(windowOverlays)
             .modifier(windowChrome)
             .modifier(windowEventListeners)
+            .onChange(of: richInputPresentationMode) { _, mode in
+                synchronizeRichInputPresentationMode(mode)
+            }
     }
 
     private var windowColumns: some View {
@@ -262,8 +271,8 @@ struct MainWindow: View {
     private var windowEventListeners: MainWindowEventListeners {
         MainWindowEventListeners(
             inputListeners: InputNotificationListeners(
-                onToggleRichInput: { toggleComposer() },
-                onToggleComposerVoice: { _ = presentComposer(startsVoice: true) },
+                onToggleRichInput: { toggleRichInput() },
+                onToggleComposerVoice: { _ = presentRichInput(startsVoice: true) },
                 onToggleVoiceRecording: { _ = openVoiceRecorder() }
             ),
             tabCloseObserver: TabCloseConfirmationObserver(
@@ -832,11 +841,13 @@ struct MainWindow: View {
                         worktreeName: worktree.branch ?? worktree.name,
                         languageIdentifier: recordingLanguage,
                         availableSize: geometry.size,
+                        presentationMode: .floating,
                         broadcasts: $richInputBroadcast,
                         onSubmit: { appendReturn, selectedText in
                             submitRichInput(state, appendReturn: appendReturn, selectedText: selectedText)
                             closeComposer()
                         },
+                        onChangePresentationMode: changeRichInputPresentationMode,
                         onClose: closeComposer
                     )
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -1518,7 +1529,7 @@ struct MainWindow: View {
 
     private func handleShortcutAction(_ action: ShortcutAction) -> Bool {
         if action == .toggleComposerVoice {
-            return presentComposer(startsVoice: true)
+            return presentRichInput(startsVoice: true)
         }
         if action == .toggleVoiceRecording {
             return openVoiceRecorder()
@@ -1527,8 +1538,8 @@ struct MainWindow: View {
     }
 
     private func openVoiceRecorder() -> Bool {
-        if MainWindowVoiceInputPolicy.target(composerVisible: composerVisible) == .composer {
-            return presentComposer(startsVoice: true)
+        if MainWindowVoiceInputPolicy.target(composerVisible: richInputVisible) == .composer {
+            return presentRichInput(startsVoice: true)
         }
         if voiceRecording.isPanelVisible {
             voiceRecording.cancel()
@@ -1604,10 +1615,61 @@ struct MainWindow: View {
     @ViewBuilder
     private func panelContent(for panelID: String, position: PanelPosition, mode: PanelMode) -> some View {
         switch panelID {
+        case BuiltinPanel.richInput:
+            richInputPanelBody(position: position, mode: mode)
         case BuiltinPanel.extensionConsole:
             extensionConsolePanelBody(position: position, mode: mode)
         default:
             extensionPanelBody(panelID: panelID, position: position, mode: mode)
+        }
+    }
+
+    @ViewBuilder
+    private func richInputPanelBody(position: PanelPosition, mode: PanelMode) -> some View {
+        if let state = activeRichInputState,
+           let worktreeKey = activeWorktreeKey,
+           let project = activeProject,
+           let worktree = resolvedActiveWorktree(for: project)
+        {
+            PanelContainer(
+                chrome: PanelChrome(
+                    iconSymbol: "keyboard",
+                    title: L10n.string("Rich Input"),
+                    hiddenControls: [.pin],
+                    trailingButtons: [richInputBroadcastButton, useFloatingComposerButton]
+                ),
+                mode: mode,
+                position: position,
+                focusRestorationID: nil,
+                onClose: closeRichInput,
+                onTogglePin: nil,
+                onTogglePosition: toggleRichInputPanelPosition,
+                content: {
+                    FocusedComposerView(
+                        state: state,
+                        voice: composerVoice,
+                        worktreeKey: worktreeKey,
+                        projectName: project.localizedDisplayName,
+                        worktreeName: worktree.branch ?? worktree.name,
+                        languageIdentifier: recordingLanguage,
+                        availableSize: .zero,
+                        presentationMode: .panel,
+                        broadcasts: $richInputBroadcast,
+                        onSubmit: { appendReturn, selectedText in
+                            submitRichInput(state, appendReturn: appendReturn, selectedText: selectedText)
+                        },
+                        onChangePresentationMode: changeRichInputPresentationMode,
+                        onClose: closeRichInput
+                    )
+                }
+            )
+            .modifier(PanelFrame(
+                position: position,
+                size: position == .bottom ? $richInputPanelHeight : $richInputPanelWidth,
+                range: position == .bottom
+                    ? PanelLayoutMetrics.richInputHeightRange
+                    : PanelLayoutMetrics.richInputWidthRange
+            ))
         }
     }
 
@@ -1659,6 +1721,29 @@ struct MainWindow: View {
                     : PanelLayoutMetrics.extensionWidthRange
             ))
         }
+    }
+
+    private var richInputBroadcastButton: PanelHeaderButton {
+        PanelHeaderButton(
+            id: "richInput.broadcast",
+            icon: .symbol(richInputBroadcast
+                ? "dot.radiowaves.left.and.right"
+                : "antenna.radiowaves.left.and.right.slash"),
+            label: richInputBroadcast
+                ? L10n.string("Broadcast On — Send to All Split Panes")
+                : L10n.string("Broadcast Off — Send to Active Pane"),
+            isActive: richInputBroadcast,
+            action: { richInputBroadcast.toggle() }
+        )
+    }
+
+    private var useFloatingComposerButton: PanelHeaderButton {
+        PanelHeaderButton(
+            id: "richInput.presentationMode",
+            icon: .symbol("rectangle.on.rectangle"),
+            label: L10n.string("Use Floating Composer"),
+            action: { changeRichInputPresentationMode(.floating) }
+        )
     }
 
     private var sidebarResizeHandle: some View {
@@ -1728,28 +1813,39 @@ struct MainWindow: View {
         return appState.activeTab(for: project.id)?.content.pane
     }
 
-    private func toggleComposer() {
-        if composerVisible {
-            closeComposer()
+    private var richInputPanelVisible: Bool {
+        panelHost.isOpen(BuiltinPanel.richInput)
+    }
+
+    private var richInputVisible: Bool {
+        composerVisible || richInputPanelVisible
+    }
+
+    private func toggleRichInput() {
+        if richInputVisible {
+            closeRichInput()
         } else {
-            _ = presentComposer(startsVoice: false)
+            _ = presentRichInput(startsVoice: false)
         }
     }
 
     @discardableResult
-    private func presentComposer(startsVoice: Bool) -> Bool {
+    private func presentRichInput(startsVoice: Bool) -> Bool {
         guard let richInputState = activeRichInputState, activeRichInputPaneID != nil else { return false }
         guard MainWindowModalPolicy.canPresent(.composer, active: activeModalOverlays) else { return false }
         if voiceRecording.isPanelVisible {
             voiceRecording.cancel()
         }
-        if !composerVisible {
+        switch richInputPresentationMode {
+        case .panel:
+            panelHost.open(BuiltinPanel.richInput, at: richInputPanelPosition, mode: .pinned)
+        case .floating:
             composerVisible = true
         }
         richInputState.focusVersion += 1
         guard startsVoice else { return true }
         DispatchQueue.main.async {
-            guard composerVisible else { return }
+            guard richInputVisible else { return }
             composerVoice.start(languageIdentifier: recordingLanguage)
         }
         return true
@@ -1757,14 +1853,55 @@ struct MainWindow: View {
 
     private func closeComposer() {
         guard composerVisible else { return }
+        closeRichInput()
+    }
+
+    private func closeRichInput() {
+        guard richInputVisible else { return }
         composerVoice.cancel()
         composerVisible = false
+        panelHost.close(BuiltinPanel.richInput)
+        restoreActiveTerminalFocus()
+    }
+
+    private func restoreActiveTerminalFocus() {
         guard let paneID = activeRichInputPaneID,
               let view = TerminalViewRegistry.shared.existingView(for: paneID)
         else { return }
         DispatchQueue.main.async {
             view.terminalView.window?.makeFirstResponder(view.terminalView)
         }
+    }
+
+    private func changeRichInputPresentationMode(_ mode: RichInputPresentationMode) {
+        guard richInputPresentationMode != mode else { return }
+        richInputPresentationMode = mode
+        synchronizeRichInputPresentationMode(mode)
+    }
+
+    private func synchronizeRichInputPresentationMode(_ mode: RichInputPresentationMode) {
+        guard richInputVisible else { return }
+        if mode == .panel, richInputPanelVisible, !composerVisible {
+            return
+        }
+        if mode == .floating, composerVisible, !richInputPanelVisible {
+            return
+        }
+        composerVisible = false
+        panelHost.close(BuiltinPanel.richInput)
+        switch mode {
+        case .panel:
+            panelHost.open(BuiltinPanel.richInput, at: richInputPanelPosition, mode: .pinned)
+        case .floating:
+            composerVisible = true
+        }
+        activeRichInputState?.focusVersion += 1
+    }
+
+    private func toggleRichInputPanelPosition() {
+        richInputPanelPosition = richInputPanelPosition.opposite
+        guard richInputPanelVisible else { return }
+        panelHost.move(BuiltinPanel.richInput, to: richInputPanelPosition)
     }
 
     private func submitRichInput(_ richInput: RichInputState, appendReturn: Bool, selectedText: String?) {
