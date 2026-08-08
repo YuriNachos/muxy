@@ -391,13 +391,17 @@ final class WorktreeStore {
                 emit: teardownEmit
             )
         }
-        try await GitWorktreeService.shared.removeWorktree(
-            repoPath: repoPath,
-            path: worktree.path,
-            force: force,
-            context: context,
-            timeout: deadline.remaining()
-        )
+        if context.isRemote || FileManager.default.fileExists(atPath: repoPath) {
+            try await GitWorktreeService.shared.removeWorktree(
+                repoPath: repoPath,
+                path: worktree.path,
+                force: force,
+                context: context,
+                timeout: deadline.remaining()
+            )
+        } else {
+            try? await context.fileOps.removeItem(at: worktree.path)
+        }
 
         let directoryRemoved = await (try? context.fileOps.exists(
             at: worktree.path,

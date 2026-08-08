@@ -213,6 +213,29 @@ struct GitWorktreeServiceRemoveTests {
         ) == "/srv/repos/app-feature")
     }
 
+    @Test("cleanupOnDisk removes an orphaned worktree when its main repo is missing")
+    func cleanupRemovesOrphanedWorktreeWhenRepoIsMissing() async throws {
+        let repo = try TempGitRepo()
+        defer { repo.cleanup() }
+
+        try repo.commit(file: "a.txt", contents: "1", message: "base")
+        let worktreePath = repo.siblingPath("orphan-repo-wt")
+        try await GitWorktreeService.shared.addWorktree(
+            repoPath: repo.path,
+            path: worktreePath,
+            branch: "feature",
+            createBranch: true,
+            baseBranch: nil
+        )
+
+        try FileManager.default.removeItem(atPath: repo.path)
+
+        let worktree = Worktree(name: "orphan-repo-wt", path: worktreePath, branch: "feature", isPrimary: false)
+        try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
+
+        #expect(!FileManager.default.fileExists(atPath: worktreePath))
+    }
+
     @Test("heals an orphaned worktree referenced through a symlinked parent")
     func healsOrphanThroughSymlinkedParent() async throws {
         let repo = try TempGitRepo()
