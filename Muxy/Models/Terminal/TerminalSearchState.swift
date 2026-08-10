@@ -12,7 +12,7 @@ final class TerminalSearchState {
 
     var displayText: String {
         guard let total else { return "" }
-        guard let selected else { return "\(total) matches" }
+        guard let selected else { return total == 1 ? "1 match" : "\(total) matches" }
         return "\(selected) of \(total)"
     }
 

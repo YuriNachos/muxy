@@ -235,6 +235,15 @@ struct ModelCoverageTests {
         #expect(values == ["abc", "", "ab"])
     }
 
+    @Test("Terminal search display text uses the singular form for a single match")
+    func terminalSearchDisplayTextSingularMatch() {
+        let state = TerminalSearchState()
+        state.total = 1
+        #expect(state.displayText == "1 match")
+        state.total = 3
+        #expect(state.displayText == "3 matches")
+    }
+
     @Test("Terminal pane consumeRestoredLaunch returns startup launch and updates state")
     func terminalPaneConsumeRestoredLaunchReturnsStartupLaunch() {
         let pane = TerminalPaneState(
