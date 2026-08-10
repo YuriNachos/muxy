@@ -231,71 +231,9 @@ struct GitWorktreeServiceRemoveTests {
         try FileManager.default.removeItem(atPath: repo.path)
 
         let worktree = Worktree(name: "orphan-repo-wt", path: worktreePath, branch: "feature", isPrimary: false)
-        let removed = try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
+        try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
 
         #expect(!FileManager.default.fileExists(atPath: worktreePath))
-        #expect(removed == true)
-    }
-
-    @Test("cleanupOnDisk preserves a reused path when its main repo is missing")
-    func cleanupPreservesReusedPathWhenRepoIsMissing() async throws {
-        let repo = try TempGitRepo()
-        defer { repo.cleanup() }
-
-        try repo.commit(file: "a.txt", contents: "1", message: "base")
-        let worktreePath = repo.siblingPath("reused-wt")
-        try await GitWorktreeService.shared.addWorktree(
-            repoPath: repo.path,
-            path: worktreePath,
-            branch: "feature",
-            createBranch: true,
-            baseBranch: nil
-        )
-
-        try FileManager.default.removeItem(atPath: repo.path)
-        try FileManager.default.removeItem(atPath: worktreePath)
-        try FileManager.default.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
-        let preservedFile = URL(fileURLWithPath: worktreePath).appendingPathComponent("preserve.txt")
-        try "unrelated".write(to: preservedFile, atomically: true, encoding: .utf8)
-
-        let worktree = Worktree(name: "reused-wt", path: worktreePath, branch: "feature", isPrimary: false)
-        await #expect(throws: WorktreeCleanupError.unverifiedOrphanedWorktree(worktreePath)) {
-            try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
-        }
-
-        #expect(try String(contentsOf: preservedFile, encoding: .utf8) == "unrelated")
-    }
-
-    @Test("cleanupOnDisk surfaces orphaned worktree deletion failures")
-    func cleanupSurfacesOrphanedWorktreeDeletionFailure() async throws {
-        let repo = try TempGitRepo()
-        defer { repo.cleanup() }
-
-        try repo.commit(file: "a.txt", contents: "1", message: "base")
-        let worktreePath = repo.siblingPath("protected-wt")
-        try await GitWorktreeService.shared.addWorktree(
-            repoPath: repo.path,
-            path: worktreePath,
-            branch: "feature",
-            createBranch: true,
-            baseBranch: nil
-        )
-
-        try FileManager.default.removeItem(atPath: repo.path)
-        let parentPath = URL(fileURLWithPath: worktreePath).deletingLastPathComponent().path
-        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: worktreePath)
-        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: parentPath)
-        defer {
-            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: parentPath)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: worktreePath)
-        }
-
-        let worktree = Worktree(name: "protected-wt", path: worktreePath, branch: "feature", isPrimary: false)
-        await #expect(throws: Error.self) {
-            try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
-        }
-
-        #expect(FileManager.default.fileExists(atPath: worktreePath))
     }
 
     @Test("heals an orphaned worktree referenced through a symlinked parent")

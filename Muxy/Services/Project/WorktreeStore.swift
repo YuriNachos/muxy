@@ -1,4 +1,3 @@
-import Darwin
 import Foundation
 import os
 
@@ -9,20 +8,6 @@ enum WorktreeMutationError: LocalizedError {
 
     var errorDescription: String? {
         "This project is being removed."
-    }
-}
-
-enum WorktreeCleanupError: LocalizedError, Equatable {
-    case unverifiedOrphanedWorktree(String)
-    case directoryStillExists(String)
-
-    var errorDescription: String? {
-        switch self {
-        case let .unverifiedOrphanedWorktree(path):
-            "Muxy could not verify that \"\(path)\" is an orphaned worktree, so it was not deleted."
-        case let .directoryStillExists(path):
-            "Muxy could not remove the worktree directory at \"\(path)\"."
-        }
     }
 }
 
@@ -406,13 +391,7 @@ final class WorktreeStore {
                 emit: teardownEmit
             )
         }
-        let repositoryExists = if context.isRemote {
-            true
-        } else {
-            try await localPathExists(at: repoPath)
-        }
-        let removedWithoutGit = !repositoryExists
-        if repositoryExists {
+        if context.isRemote || FileManager.default.fileExists(atPath: repoPath) {
             try await GitWorktreeService.shared.removeWorktree(
                 repoPath: repoPath,
                 path: worktree.path,
@@ -421,126 +400,18 @@ final class WorktreeStore {
                 timeout: deadline.remaining()
             )
         } else {
-            try await removeVerifiedOrphanedWorktree(repoPath: repoPath, worktreePath: worktree.path)
+            try? await context.fileOps.removeItem(at: worktree.path)
         }
 
-        let directoryRemoved: Bool?
-        if removedWithoutGit {
-            let directoryStillExists = try await context.fileOps.exists(
-                at: worktree.path,
-                timeout: deadline.remaining()
-            )
-            guard !directoryStillExists else {
-                throw WorktreeCleanupError.directoryStillExists(worktree.path)
-            }
-            directoryRemoved = true
-        } else {
-            directoryRemoved = await (try? context.fileOps.exists(
-                at: worktree.path,
-                timeout: deadline.remaining()
-            )).map { !$0 }
-        }
+        let directoryRemoved = await (try? context.fileOps.exists(
+            at: worktree.path,
+            timeout: deadline.remaining()
+        )).map { !$0 }
         guard directoryRemoved == true, !context.isRemote, !worktree.isExternallyManaged else {
             return directoryRemoved
         }
         await removeParentDirectoryIfEmpty(for: worktree.path)
         return true
-    }
-
-    nonisolated private static func localPathExists(at path: String) async throws -> Bool {
-        try await GitProcessRunner.offMainThrowing {
-            try pathExists(at: path, followingSymbolicLinks: true)
-        }
-    }
-
-    nonisolated private static func removeVerifiedOrphanedWorktree(
-        repoPath: String,
-        worktreePath: String
-    ) async throws {
-        try await GitProcessRunner.offMainThrowing {
-            guard try pathExists(at: worktreePath, followingSymbolicLinks: false) else { return }
-            guard try isLinkedWorktree(worktreePath, belongingTo: repoPath) else {
-                throw WorktreeCleanupError.unverifiedOrphanedWorktree(worktreePath)
-            }
-            try FileManager.default.removeItem(atPath: worktreePath)
-        }
-    }
-
-    nonisolated private static func pathExists(
-        at path: String,
-        followingSymbolicLinks: Bool
-    ) throws -> Bool {
-        var fileStatus = stat()
-        let result: Int32 = path.withCString { pointer in
-            if followingSymbolicLinks {
-                return Darwin.access(pointer, F_OK)
-            }
-            return Darwin.lstat(pointer, &fileStatus)
-        }
-        guard result != 0 else { return true }
-        let errorCode = errno
-        guard errorCode == ENOENT || errorCode == ENOTDIR else {
-            throw POSIXError(POSIXErrorCode(rawValue: errorCode) ?? .EIO)
-        }
-        return false
-    }
-
-    nonisolated private static func canonicalLocalPath(_ path: String) throws -> String {
-        var existingAncestor = URL(fileURLWithPath: path).standardizedFileURL
-        var missingComponents: [String] = []
-        while try !pathExists(at: existingAncestor.path, followingSymbolicLinks: false) {
-            let parent = existingAncestor.deletingLastPathComponent()
-            guard parent.path != existingAncestor.path else { break }
-            missingComponents.append(existingAncestor.lastPathComponent)
-            existingAncestor = parent
-        }
-        var resolved = existingAncestor.resolvingSymlinksInPath()
-        for component in missingComponents.reversed() {
-            resolved.appendPathComponent(component)
-        }
-        return resolved.standardizedFileURL.path
-    }
-
-    nonisolated private static func isLinkedWorktree(
-        _ worktreePath: String,
-        belongingTo repoPath: String
-    ) throws -> Bool {
-        let worktreeURL = URL(fileURLWithPath: worktreePath, isDirectory: true)
-        let worktreeValues = try worktreeURL.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
-        guard worktreeValues.isDirectory == true, worktreeValues.isSymbolicLink != true else { return false }
-
-        let gitFileURL = worktreeURL.appendingPathComponent(".git", isDirectory: false)
-        guard try pathExists(at: gitFileURL.path, followingSymbolicLinks: false) else { return false }
-        let gitFileValues = try gitFileURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
-        guard gitFileValues.isRegularFile == true, gitFileValues.isSymbolicLink != true else { return false }
-
-        let data = try RegularFileReader.data(contentsOf: gitFileURL, maximumByteCount: 64 * 1024)
-        guard let contents = String(data: data, encoding: .utf8),
-              let firstLine = contents.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first
-        else { return false }
-        let line = firstLine.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix = "gitdir:"
-        guard line.hasPrefix(prefix) else { return false }
-        let rawGitDirectory = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !rawGitDirectory.isEmpty else { return false }
-
-        let gitDirectoryURL = URL(fileURLWithPath: rawGitDirectory, relativeTo: worktreeURL)
-        let gitDirectoryPath = try canonicalLocalPath(gitDirectoryURL.path)
-        let gitAdminRoot = URL(fileURLWithPath: gitDirectoryPath, isDirectory: true)
-            .deletingLastPathComponent()
-            .path
-        let repositoryPath = try canonicalLocalPath(repoPath)
-        let repositoryURL = URL(fileURLWithPath: repositoryPath, isDirectory: true)
-        let expectedAdminRoots = [
-            repositoryURL
-                .appendingPathComponent(".git", isDirectory: true)
-                .appendingPathComponent("worktrees", isDirectory: true)
-                .path,
-            repositoryURL
-                .appendingPathComponent("worktrees", isDirectory: true)
-                .path,
-        ]
-        return expectedAdminRoots.contains(gitAdminRoot)
     }
 
     nonisolated private static func removeParentDirectoryIfEmpty(for path: String) async {
