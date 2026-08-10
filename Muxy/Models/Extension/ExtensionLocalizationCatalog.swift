@@ -252,7 +252,8 @@ struct FormatSignature {
              "a",
              "A":
             switch length {
-            case "": .double
+            case "",
+                 "l": .double
             case "L": .longDouble
             default: nil
             }

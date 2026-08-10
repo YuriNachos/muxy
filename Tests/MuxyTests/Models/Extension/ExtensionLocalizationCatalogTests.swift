@@ -193,4 +193,14 @@ struct ExtensionLocalizationCatalogTests {
 
         #expect(ExtensionLocalizationCatalog.incompatibleKey(in: catalog) == "beta %@")
     }
+
+    @Test("treats the l length modifier as a no-op on float conversions")
+    func treatsLowerLAsNoOpOnFloats() {
+        let catalog: [String: Any] = [
+            "%f units": "%lf units",
+            "%.2g ratio": "%.2lg ratio",
+        ]
+
+        #expect(ExtensionLocalizationCatalog.incompatibleKey(in: catalog) == nil)
+    }
 }
