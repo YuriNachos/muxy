@@ -68,7 +68,7 @@ Every placeholder in a translated value must match the placeholder at the same a
 "Settings"          = "Einstellungen %@";         ❌ key takes no arguments
 ```
 
-Use positional placeholders (`%1$@`, `%2$lld`) whenever the translation needs a different word order. `%ld` and `%lld` are interchangeable, as are `%d` and `%u` with their `h`/`hh` variants; `%*d`-style widths that consume an extra argument are rejected. In `Localizable.stringsdict`, the same rule applies to `NSStringLocalizedFormatKey` and to every plural variant inside each variable.
+Use positional placeholders (`%1$@`, `%2$lld`) whenever the translation needs a different word order. `%ld` and `%lld` are interchangeable, as are `%d` and `%u` with their `h`/`hh` variants. For floating-point conversions (`aAeEfFgG`), the lowercase `l` modifier is a no-op, so forms such as `%lf` and `%f` are interchangeable; uppercase `L` remains the distinct long-double modifier. `%*d`-style widths that consume an extra argument are rejected. In `Localizable.stringsdict`, the same rules apply to `NSStringLocalizedFormatKey` and to every plural variant inside each variable.
 
 A minimal `Info.plist` is:
 
