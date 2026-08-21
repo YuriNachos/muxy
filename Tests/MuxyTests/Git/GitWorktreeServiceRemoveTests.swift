@@ -107,12 +107,12 @@ struct GitWorktreeServiceRemoveTests {
         )
 
         let worktree = Worktree(name: "keep-branch-wt", path: worktreePath, branch: "feature", isPrimary: false)
-        let dirRemoved = try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
+        let cleanupResult = try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
 
         let records = try await GitWorktreeService.shared.listWorktrees(repoPath: repo.path)
         #expect(!records.contains { $0.path == worktreePath })
         #expect(repo.branchExists("feature"))
-        #expect(dirRemoved == true)
+        #expect(cleanupResult == .removed)
     }
 
     @Test("cleanupOnDisk without force preserves a dirty worktree")
@@ -213,8 +213,8 @@ struct GitWorktreeServiceRemoveTests {
         ) == "/srv/repos/app-feature")
     }
 
-    @Test("cleanupOnDisk removes an orphaned worktree when its main repo is missing")
-    func cleanupRemovesOrphanedWorktreeWhenRepoIsMissing() async throws {
+    @Test("cleanupOnDisk preserves an orphaned worktree when its main repo is missing")
+    func cleanupPreservesOrphanedWorktreeWhenRepoIsMissing() async throws {
         let repo = try TempGitRepo()
         defer { repo.cleanup() }
 
@@ -231,9 +231,91 @@ struct GitWorktreeServiceRemoveTests {
         try FileManager.default.removeItem(atPath: repo.path)
 
         let worktree = Worktree(name: "orphan-repo-wt", path: worktreePath, branch: "feature", isPrimary: false)
-        try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
+        let cleanupResult = try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
 
-        #expect(!FileManager.default.fileExists(atPath: worktreePath))
+        #expect(cleanupResult == .preservedMissingRepository)
+        #expect(FileManager.default.fileExists(atPath: worktreePath))
+    }
+
+    @Test("cleanupOnDisk preserves a reused path when its main repo is missing")
+    func cleanupPreservesReusedPathWhenRepoIsMissing() async throws {
+        let repo = try TempGitRepo()
+        defer { repo.cleanup() }
+
+        try repo.commit(file: "a.txt", contents: "1", message: "base")
+        let worktreePath = repo.siblingPath("reused-wt")
+        try await GitWorktreeService.shared.addWorktree(
+            repoPath: repo.path,
+            path: worktreePath,
+            branch: "feature",
+            createBranch: true,
+            baseBranch: nil
+        )
+        try FileManager.default.removeItem(atPath: repo.path)
+        try FileManager.default.removeItem(atPath: worktreePath)
+        try FileManager.default.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+        let preservedFile = URL(fileURLWithPath: worktreePath).appendingPathComponent("preserve.txt")
+        try "unrelated".write(to: preservedFile, atomically: true, encoding: .utf8)
+
+        let worktree = Worktree(name: "reused-wt", path: worktreePath, branch: "feature", isPrimary: false)
+        let cleanupResult = try await WorktreeStore.cleanupOnDisk(worktree: worktree, repoPath: repo.path)
+
+        #expect(cleanupResult == .preservedMissingRepository)
+        #expect(try String(contentsOf: preservedFile, encoding: .utf8) == "unrelated")
+    }
+
+    @Test("cleanupOnDisk without force preserves an orphan when its main repo is missing")
+    func cleanupWithoutForcePreservesOrphanWhenRepoIsMissing() async throws {
+        let repo = try TempGitRepo()
+        defer { repo.cleanup() }
+
+        try repo.commit(file: "a.txt", contents: "1", message: "base")
+        let worktreePath = repo.siblingPath("dirty-orphan-wt")
+        try await GitWorktreeService.shared.addWorktree(
+            repoPath: repo.path,
+            path: worktreePath,
+            branch: "feature",
+            createBranch: true,
+            baseBranch: nil
+        )
+        let changedFile = URL(fileURLWithPath: worktreePath).appendingPathComponent("a.txt")
+        try "dirty".write(to: changedFile, atomically: true, encoding: .utf8)
+        try FileManager.default.removeItem(atPath: repo.path)
+
+        let worktree = Worktree(name: "dirty-orphan-wt", path: worktreePath, branch: "feature", isPrimary: false)
+        let cleanupResult = try await WorktreeStore.cleanupOnDisk(
+            worktree: worktree,
+            repoPath: repo.path,
+            force: false
+        )
+
+        #expect(cleanupResult == .preservedMissingRepository)
+        #expect(try String(contentsOf: changedFile, encoding: .utf8) == "dirty")
+    }
+
+    @Test("project cleanup preserves worktrees when the main repo is missing")
+    func projectCleanupPreservesWorktreesWhenRepoIsMissing() async throws {
+        let repo = try TempGitRepo()
+        defer { repo.cleanup() }
+
+        try repo.commit(file: "a.txt", contents: "1", message: "base")
+        let project = Project(name: "Repo", path: repo.path)
+        let worktreeRoot = MuxyFileStorage.worktreeRoot(forProjectID: project.id)
+        let worktreePath = worktreeRoot.appendingPathComponent("project-orphan-wt").path
+        defer { try? FileManager.default.removeItem(at: worktreeRoot) }
+        try await GitWorktreeService.shared.addWorktree(
+            repoPath: repo.path,
+            path: worktreePath,
+            branch: "feature",
+            createBranch: true,
+            baseBranch: nil
+        )
+        let worktree = Worktree(name: "project-orphan-wt", path: worktreePath, branch: "feature", isPrimary: false)
+        try FileManager.default.removeItem(atPath: repo.path)
+
+        try await WorktreeStore.cleanupOnDisk(for: project, knownWorktrees: [worktree])
+
+        #expect(FileManager.default.fileExists(atPath: worktreePath))
     }
 
     @Test("heals an orphaned worktree referenced through a symlinked parent")

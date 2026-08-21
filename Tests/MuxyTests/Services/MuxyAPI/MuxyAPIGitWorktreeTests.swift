@@ -127,6 +127,46 @@ struct MuxyAPIGitWorktreeTests {
         #expect(excessive == .failure(expected))
     }
 
+    @Test("missing repositories preserve files and forget tracked worktrees")
+    func missingRepositoryPreservesFilesAndForgetsWorktree() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("muxy-api-orphan-tests-\(UUID().uuidString)", isDirectory: true)
+        let repoPath = root.appendingPathComponent("repo", isDirectory: true).path
+        let worktreePath = root.appendingPathComponent("api-orphan-wt", isDirectory: true).path
+        try FileManager.default.createDirectory(atPath: worktreePath, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let project = Project(name: "Repo", path: repoPath)
+        let primary = Worktree(name: project.name, path: project.path, isPrimary: true)
+        let worktree = Worktree(name: "api-orphan-wt", path: worktreePath, branch: "feature", isPrimary: false)
+        let extensionID = "test-\(UUID().uuidString)"
+        let grant = ExtensionGrantRule(
+            extensionID: extensionID,
+            verb: .gitWrite,
+            match: .gitOperationEquals("worktree.remove"),
+            decision: .allow
+        )
+        ExtensionGrantStore.shared.add(grant)
+        defer { ExtensionGrantStore.shared.remove(ruleID: grant.id) }
+        let context = makeContext(project: project, worktrees: [primary, worktree], extensionID: extensionID)
+
+        let result = await MuxyAPI.Git.removeWorktree(
+            projectIdentifier: project.id.uuidString,
+            path: worktreePath,
+            force: false,
+            timeoutMs: 30_000,
+            context: context
+        )
+
+        guard case let .success(removal) = result else {
+            Issue.record("Expected worktree removal to succeed, got \(result)")
+            return
+        }
+        #expect(removal.dirRemoved == false)
+        #expect(FileManager.default.fileExists(atPath: worktreePath))
+        #expect(!context.worktreeStore.list(for: project.id).contains { $0.id == worktree.id })
+    }
+
     @Test("forgetting a worktree drops it and switches to the replacement")
     func forgetSwitchesToReplacement() {
         let project = Project(name: "Repo", path: "/tmp/repo")
@@ -148,13 +188,18 @@ struct MuxyAPIGitWorktreeTests {
         #expect(context.appState.activeWorktreeID[project.id] == primary.id)
     }
 
-    private func makeContext(project: Project, worktrees: [Worktree]) -> MuxyAPI.Git.Context {
-        makeContext(projects: [project], worktrees: [project.id: worktrees])
+    private func makeContext(
+        project: Project,
+        worktrees: [Worktree],
+        extensionID: String = "test"
+    ) -> MuxyAPI.Git.Context {
+        makeContext(projects: [project], worktrees: [project.id: worktrees], extensionID: extensionID)
     }
 
     private func makeContext(
         projects: [Project],
-        worktrees: [UUID: [Worktree]]
+        worktrees: [UUID: [Worktree]],
+        extensionID: String = "test"
     ) -> MuxyAPI.Git.Context {
         let projectStore = ProjectStore(persistence: ProjectPersistenceStub())
         for project in projects {
@@ -175,7 +220,7 @@ struct MuxyAPIGitWorktreeTests {
             workspaceContextSink: InMemoryWorkspaceContextSink()
         )
         return MuxyAPI.Git.Context(
-            extensionID: "test",
+            extensionID: extensionID,
             appState: appState,
             projectStore: projectStore,
             worktreeStore: worktreeStore,

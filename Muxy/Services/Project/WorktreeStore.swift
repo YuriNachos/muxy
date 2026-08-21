@@ -11,6 +11,25 @@ enum WorktreeMutationError: LocalizedError {
     }
 }
 
+enum WorktreeCleanupResult: Equatable {
+    case removed
+    case retained
+    case unknown
+    case preservedMissingRepository
+
+    var directoryRemoved: Bool? {
+        switch self {
+        case .removed:
+            true
+        case .retained,
+             .preservedMissingRepository:
+            false
+        case .unknown:
+            nil
+        }
+    }
+}
+
 struct WorktreeCreationRequest {
     let name: String
     let path: String
@@ -242,7 +261,7 @@ final class WorktreeStore {
         Task { [weak self] in
             defer { self?.endProjectMutation(projectID) }
             do {
-                try await WorktreeStore.cleanupOnDisk(
+                let cleanupResult = try await WorktreeStore.cleanupOnDisk(
                     worktree: worktree,
                     repoPath: repoPath,
                     context: context
@@ -250,6 +269,12 @@ final class WorktreeStore {
                 self?.removingWorktreeIDs.remove(worktree.id)
                 self?.removeWorktree(worktree.id, from: projectID)
                 onSuccess()
+                if cleanupResult == .preservedMissingRepository {
+                    ToastState.shared.show(
+                        title: L10n.string("Worktree removed from Muxy"),
+                        body: L10n.string("The main repository is missing, so files were preserved at \"\(worktree.path)\".")
+                    )
+                }
             } catch {
                 self?.removingWorktreeIDs.remove(worktree.id)
                 ToastState.shared.show(
@@ -380,8 +405,13 @@ final class WorktreeStore {
         force: Bool = true,
         timeout: TimeInterval = GitWorktreeService.defaultWorktreeRemovalTimeout,
         teardownEmit: @Sendable @escaping (WorktreeTeardownOutputLine) -> Void = { _ in }
-    ) async throws -> Bool? {
-        guard worktree.canBeRemoved else { return await !(context.fileOps.exists(at: worktree.path)) }
+    ) async throws -> WorktreeCleanupResult {
+        guard worktree.canBeRemoved else {
+            return await context.fileOps.exists(at: worktree.path) ? .retained : .removed
+        }
+        guard context.isRemote || FileManager.default.fileExists(atPath: repoPath) else {
+            return .preservedMissingRepository
+        }
         let deadline = OperationDeadline(timeout: timeout)
         if !context.isRemote {
             try await WorktreeTeardownRunner.run(
@@ -391,27 +421,34 @@ final class WorktreeStore {
                 emit: teardownEmit
             )
         }
-        if context.isRemote || FileManager.default.fileExists(atPath: repoPath) {
-            try await GitWorktreeService.shared.removeWorktree(
-                repoPath: repoPath,
-                path: worktree.path,
-                force: force,
-                context: context,
-                timeout: deadline.remaining()
-            )
-        } else {
-            try? await context.fileOps.removeItem(at: worktree.path)
-        }
+        try await GitWorktreeService.shared.removeWorktree(
+            repoPath: repoPath,
+            path: worktree.path,
+            force: force,
+            context: context,
+            timeout: deadline.remaining()
+        )
 
         let directoryRemoved = await (try? context.fileOps.exists(
             at: worktree.path,
             timeout: deadline.remaining()
         )).map { !$0 }
         guard directoryRemoved == true, !context.isRemote, !worktree.isExternallyManaged else {
-            return directoryRemoved
+            return cleanupResult(directoryRemoved: directoryRemoved)
         }
         await removeParentDirectoryIfEmpty(for: worktree.path)
-        return true
+        return .removed
+    }
+
+    private static func cleanupResult(directoryRemoved: Bool?) -> WorktreeCleanupResult {
+        switch directoryRemoved {
+        case true:
+            .removed
+        case false:
+            .retained
+        case nil:
+            .unknown
+        }
     }
 
     nonisolated private static func removeParentDirectoryIfEmpty(for path: String) async {
@@ -433,7 +470,7 @@ final class WorktreeStore {
             try await cleanupOnDisk(worktree: worktree, repoPath: project.path, context: context)
         }
 
-        guard !context.isRemote else { return }
+        guard !context.isRemote, FileManager.default.fileExists(atPath: project.path) else { return }
         let root = MuxyFileStorage.worktreeRoot(forProjectID: project.id)
         guard FileManager.default.fileExists(atPath: root.path) else { return }
         let children = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []

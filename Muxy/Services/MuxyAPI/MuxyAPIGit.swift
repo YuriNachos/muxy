@@ -625,14 +625,17 @@ extension MuxyAPI {
 
                 var worktree = tracked.worktree
                 worktree.path = expandedPath
-                if !force, try await GitWorktreeService.shared.uncommittedChanges(
+                let canInspectChanges = workspaceContext.isRemote || FileManager.default.fileExists(
+                    atPath: tracked.project.path
+                )
+                if !force, canInspectChanges, try await GitWorktreeService.shared.uncommittedChanges(
                     worktreePath: worktree.path,
                     context: workspaceContext,
                     timeout: deadline.remaining()
                 ) {
                     throw APIError.invalidArguments("worktree has uncommitted changes; pass force to remove it")
                 }
-                let dirRemoved = try await WorktreeStore.cleanupOnDisk(
+                let cleanupResult = try await WorktreeStore.cleanupOnDisk(
                     worktree: worktree,
                     repoPath: tracked.project.path,
                     context: workspaceContext,
@@ -640,7 +643,7 @@ extension MuxyAPI {
                     timeout: deadline.remaining()
                 )
                 forgetWorktree(project: tracked.project, worktree: tracked.worktree, context: context)
-                return RemoveWorktreeResult(path: expandedPath, dirRemoved: dirRemoved)
+                return RemoveWorktreeResult(path: expandedPath, dirRemoved: cleanupResult.directoryRemoved)
             }
         }
 
