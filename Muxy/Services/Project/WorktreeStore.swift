@@ -441,14 +441,8 @@ final class WorktreeStore {
     }
 
     private static func cleanupResult(directoryRemoved: Bool?) -> WorktreeCleanupResult {
-        switch directoryRemoved {
-        case true:
-            .removed
-        case false:
-            .retained
-        case nil:
-            .unknown
-        }
+        guard let directoryRemoved else { return .unknown }
+        return directoryRemoved ? .removed : .retained
     }
 
     nonisolated private static func removeParentDirectoryIfEmpty(for path: String) async {
